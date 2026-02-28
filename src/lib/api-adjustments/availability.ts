@@ -188,7 +188,7 @@ export function buildAvailability(params: BuildAvailabilityParams): string {
     const excl = exclusivitySuffix();
     const parts = evo ? [evo] : [];
     if (excl) parts.push(excl);
-    return parts.length ? parts.join(", ") : "Lv. ?";
+    return parts.length ? parts.join(", ") : "—";
   }
   const atoms: string[] = [];
   if (GIFT_ONLY_IDS.has(pokemonId)) {

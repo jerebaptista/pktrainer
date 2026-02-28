@@ -25,6 +25,7 @@ import {
   type StatsMode,
 } from "./pokedex-filters";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STAT_KEYS = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed", "bst"] as const;
 type StatKey = (typeof STAT_KEYS)[number];
@@ -150,12 +151,35 @@ function sortPokemon(
 /** Version tag in availability (FR/LG) – small semibold, top-aligned, no space before */
 const VERSION_TAG_CLASS = "text-[10px] font-bold align-top";
 
-function renderAvailabilityPart(part: string): React.ReactNode {
-  if (part === "NPC Trade FR") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>FR</span></>);
-  if (part === "NPC Trade LG") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>LG</span></>);
-  if (part === "Wild FR") return (<>Wild<span className={VERSION_TAG_CLASS}>FR</span></>);
-  if (part === "Wild LG") return (<>Wild<span className={VERSION_TAG_CLASS}>LG</span></>);
-  return part;
+const STONE_LABELS = new Set(["Fire Stone", "Water Stone", "Thunder Stone", "Leaf Stone", "Moon Stone"]);
+
+function getAvailabilityPartTooltip(part: string, evolvesFrom: string | null): string | null {
+  if (!evolvesFrom) return null;
+  if (/^Lv\. \d+$/.test(part)) return getPokemonDisplayName(evolvesFrom);
+  if (STONE_LABELS.has(part) || part === "Trade Evo") return getPokemonDisplayName(evolvesFrom);
+  return null;
+}
+
+function renderAvailabilityPart(part: string, p: PokemonRow): React.ReactNode {
+  const tooltipText = getAvailabilityPartTooltip(part, p.evolvesFromSpeciesName);
+  const content = (() => {
+    if (part === "NPC Trade FR") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>FR</span></>);
+    if (part === "NPC Trade LG") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>LG</span></>);
+    if (part === "Wild FR") return (<>Wild<span className={VERSION_TAG_CLASS}>FR</span></>);
+    if (part === "Wild LG") return (<>Wild<span className={VERSION_TAG_CLASS}>LG</span></>);
+    return part;
+  })();
+  if (tooltipText) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>{content}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">{tooltipText}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return content;
 }
 
 function getExtraColumnValue(p: PokemonRow, id: ExtraColumnId): string | number {
@@ -436,14 +460,36 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               </TableHead>
               {STAT_KEYS.map((key) => (
                 <TableHead key={key} className={cn(W_NUM, "group whitespace-nowrap")}>
-                  <button
-                    type="button"
-                    onClick={() => handleSort(key)}
-                    className="inline-flex items-center hover:text-foreground"
-                  >
-                    {statLabels[key]}
-                    <SortIcon column={key} />
-                  </button>
+                  {key === "bst" ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => handleSort(key)}
+                          className="inline-flex items-center hover:text-foreground"
+                        >
+                          {statLabels[key]}
+                          <SortIcon column={key} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        {statsMode === "base"
+                          ? "Base Stats Total"
+                          : statsMode === "max"
+                            ? "Max. Stats Total"
+                            : "Min. Stats Total"}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(key)}
+                      className="inline-flex items-center hover:text-foreground"
+                    >
+                      {statLabels[key]}
+                      <SortIcon column={key} />
+                    </button>
+                  )}
                 </TableHead>
               ))}
               {effectiveExtraColumns.map((id) => {
@@ -549,7 +595,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                           const isLast = i === parts.length - 1;
                           return (
                             <span key={i}>
-                              {renderAvailabilityPart(part)}
+                              {renderAvailabilityPart(part, p)}
                               {!isLast && ", "}
                             </span>
                           );

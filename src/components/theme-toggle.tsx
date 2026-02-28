@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ className }: { className?: string }) {
@@ -10,19 +10,15 @@ export function ThemeToggle({ className }: { className?: string }) {
   const isDark = resolvedTheme === "dark";
 
   return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm",
-        className
-      )}
+    <Toggle
+      variant="outline"
+      size="sm"
+      pressed={isDark}
+      onPressedChange={() => setTheme(isDark ? "light" : "dark")}
+      className={cn("size-8 p-0 data-[state=on]:bg-transparent data-[state=on]:text-foreground hover:data-[state=on]:bg-muted", className)}
+      aria-label={isDark ? "Dark mode (click for light)" : "Light mode (click for dark)"}
     >
-      <Sun className="size-4 shrink-0 opacity-70" aria-hidden />
-      <Switch
-        checked={isDark}
-        onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-        aria-label="Toggle theme (light or dark)"
-      />
-      <Moon className="size-4 shrink-0 opacity-70" aria-hidden />
-    </div>
+      {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+    </Toggle>
   );
 }

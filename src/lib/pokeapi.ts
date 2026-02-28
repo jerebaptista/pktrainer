@@ -71,6 +71,8 @@ export type PokemonRow = {
   catchRate: number | null;
   growthRate: string;
   availability: string;
+  /** Pre-evolution species name (for tooltips: Lv., stones, Trade Evo). */
+  evolvesFromSpeciesName: string | null;
 };
 
 const STAT_TO_LABEL: Record<string, string> = {
@@ -238,6 +240,7 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
       speciesExclusivity,
       evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
     }),
+      evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
     };
   });
 }

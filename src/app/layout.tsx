@@ -30,7 +30,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem("pk-trainer-theme-color");document.documentElement.setAttribute("data-theme",t==="red"?"red":"green");})();`,
+            __html: `(function(){var t=localStorage.getItem("pk-trainer-theme-color");document.documentElement.setAttribute("data-theme",t==="green"?"green":"red");})();`,
           }}
         />
       </head>
