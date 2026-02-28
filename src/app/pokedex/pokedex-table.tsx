@@ -18,9 +18,13 @@ import type { PokemonRow } from "@/lib/pokeapi";
 import {
   PokedexFilters,
   EXTRA_COLUMN_OPTIONS,
+  EV_YIELD_OPTIONS,
+  AVAILABILITY_GROUPS,
+  ALL_AVAILABILITY_VALUES,
   type ExtraColumnId,
   type StatsMode,
 } from "./pokedex-filters";
+import { getPokemonDisplayName } from "@/lib/api-adjustments";
 
 const STAT_KEYS = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed", "bst"] as const;
 type StatKey = (typeof STAT_KEYS)[number];
@@ -31,12 +35,37 @@ type SortDir = "asc" | "desc";
 const W_NUM = "w-14";
 /** Same width for text columns (Name, Type, EV yield, Growth Rate) */
 const W_TEXT = "w-28";
+/** Availability column – fixed at end, shrink to content (1% lets table give min width to content) */
+const W_AVAILABILITY = "w-[1%]";
+
+/** Order for availability sort (column value ordering). Atoms and compound order. */
+const AVAILABILITY_ORDER = [
+  "Wild",
+  "Wild, FR Only",
+  "Wild, LG Only",
+  "NPC Trade",
+  "Gift",
+  "Gift, FR Only",
+  "Gift, LG Only",
+  "Game Corner",
+  "Fossil",
+  "FR Only",
+  "LG Only",
+  "Trade Evo",
+  "Fire Stone",
+  "Water Stone",
+  "Thunder Stone",
+  "Leaf Stone",
+  "Moon Stone",
+  "Event",
+];
 
 const EXTRA_COLUMN_IS_NUMERIC: Record<ExtraColumnId, boolean> = {
   baseFriendship: true,
   baseExp: true,
   catchRate: true,
   evYield: false,
+  availability: false,
   growthRate: false,
   height: true,
   weight: true,
@@ -76,6 +105,8 @@ function getExtraSortValue(p: PokemonRow, id: ExtraColumnId): number | string {
       return p.catchRate ?? -1;
     case "evYield":
       return p.evYield;
+    case "availability":
+      return p.availability;
     case "growthRate":
       return p.growthRate;
     case "height":
@@ -96,7 +127,7 @@ function sortPokemon(
   const stats = statsMode === "base" ? "baseStats" : statsMode === "max" ? "maxStats" : "minStats";
   const sorted = [...data].sort((a, b) => {
     if (key === "id") return a.id - b.id;
-    if (key === "name") return a.name.localeCompare(b.name);
+    if (key === "name") return getPokemonDisplayName(a.name).localeCompare(getPokemonDisplayName(b.name));
     if (key === "type") {
       const ta = a.types[0] ?? "";
       const tb = b.types[0] ?? "";
@@ -116,6 +147,17 @@ function sortPokemon(
   return dir === "asc" ? sorted : sorted.reverse();
 }
 
+/** Version tag in availability (FR/LG) – small semibold, top-aligned, no space before */
+const VERSION_TAG_CLASS = "text-[10px] font-bold align-top";
+
+function renderAvailabilityPart(part: string): React.ReactNode {
+  if (part === "NPC Trade FR") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>FR</span></>);
+  if (part === "NPC Trade LG") return (<>NPC Trade<span className={VERSION_TAG_CLASS}>LG</span></>);
+  if (part === "Wild FR") return (<>Wild<span className={VERSION_TAG_CLASS}>FR</span></>);
+  if (part === "Wild LG") return (<>Wild<span className={VERSION_TAG_CLASS}>LG</span></>);
+  return part;
+}
+
 function getExtraColumnValue(p: PokemonRow, id: ExtraColumnId): string | number {
   switch (id) {
     case "baseFriendship":
@@ -126,6 +168,8 @@ function getExtraColumnValue(p: PokemonRow, id: ExtraColumnId): string | number 
       return p.catchRate ?? "—";
     case "evYield":
       return p.evYield;
+    case "availability":
+      return p.availability;
     case "growthRate":
       return p.growthRate.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     case "height":
@@ -152,9 +196,34 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     }
   }, [allTypes]);
   const [statsMode, setStatsMode] = useState<StatsMode>("base");
+  /** Selectable extra columns (Availability is always last and not in this list). */
   const [extraColumns, setExtraColumns] = useState<ExtraColumnId[]>([]);
+  /** Column order follows the select order (EXTRA_COLUMN_OPTIONS), then Availability last. */
+  const effectiveExtraColumns = useMemo((): ExtraColumnId[] => {
+    const selectableOrder = EXTRA_COLUMN_OPTIONS.filter((o) => o.id !== "availability").map((o) => o.id);
+    return [...selectableOrder.filter((id) => extraColumns.includes(id)), "availability"];
+  }, [extraColumns]);
+  const [selectedEvYields, setSelectedEvYields] = useState<string[]>(() => [...EV_YIELD_OPTIONS]);
+  const [selectedGrowthRates, setSelectedGrowthRates] = useState<string[]>([]);
+  const [selectedAvailability, setSelectedAvailability] = useState<string[]>(() => [...ALL_AVAILABILITY_VALUES]);
+  const growthRatesInitialized = useRef(false);
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const allGrowthRates = useMemo(() => {
+    const raw = [...new Set(data.map((p) => p.growthRate).filter(Boolean))].sort();
+    return raw.map((value) => ({
+      value,
+      label: value.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }));
+  }, [data]);
+
+  useEffect(() => {
+    if (allGrowthRates.length > 0 && !growthRatesInitialized.current) {
+      setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
+      growthRatesInitialized.current = true;
+    }
+  }, [allGrowthRates]);
 
   const filtered = useMemo(() => {
     let list = data;
@@ -162,14 +231,41 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     if (q) {
       list = list.filter((p) => {
         const paddedId = String(p.id).padStart(3, "0");
-        return paddedId.includes(q) || p.name.toLowerCase().includes(q);
+        const displayName = getPokemonDisplayName(p.name).toLowerCase();
+        return paddedId.includes(q) || p.name.toLowerCase().includes(q) || displayName.includes(q);
       });
     }
     if (selectedTypes.length > 0) {
       list = list.filter((p) => p.types.some((t) => selectedTypes.includes(t)));
     }
+    if (selectedEvYields.length > 0) {
+      list = list.filter((p) => {
+        const parts = p.evYield.split(", ");
+        return selectedEvYields.some(
+          (ev) =>
+            parts.some((part) => {
+              const label = part.replace(/^\d+\s+/, "").trim();
+              return label === ev;
+            })
+        );
+      });
+    }
+    if (selectedGrowthRates.length > 0) {
+      list = list.filter((p) => selectedGrowthRates.includes(p.growthRate));
+    }
+    if (selectedAvailability.length > 0) {
+      list = list.filter((p) => {
+        const parts = p.availability.split(",").map((s) => s.trim());
+        return selectedAvailability.some((selected) => {
+          if (selected === "Level") return parts.some((part) => part.startsWith("Lv."));
+          if (selected === "NPC Trade") return parts.some((part) => part === "NPC Trade" || part === "NPC Trade FR" || part === "NPC Trade LG");
+          if (selected === "Wild") return parts.some((part) => part === "Wild" || part === "Wild FR" || part === "Wild LG");
+          return parts.includes(selected);
+        });
+      });
+    }
     return list;
-  }, [data, search, selectedTypes]);
+  }, [data, search, selectedTypes, selectedEvYields, selectedGrowthRates, selectedAvailability]);
 
   const sorted = useMemo(
     () => sortPokemon(filtered, sortKey, sortDir, statsMode),
@@ -191,6 +287,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
         return [type];
       }
       if (prev.includes(type)) {
+        if (prev.length === 1) return [...allTypes];
         return prev.filter((t) => t !== type);
       }
       return [...prev, type];
@@ -202,9 +299,19 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
     );
   };
-  const selectAllColumns = () =>
-    setExtraColumns(EXTRA_COLUMN_OPTIONS.map((o) => o.id));
-  const selectNoneColumns = () => setExtraColumns([]);
+  const removeAllColumns = () => setExtraColumns([]);
+  const toggleEvYield = (label: string) => {
+    setSelectedEvYields((prev) => {
+      const allSelected = prev.length === EV_YIELD_OPTIONS.length;
+      if (allSelected) return [label];
+      if (prev.includes(label)) {
+        if (prev.length === 1) return [...EV_YIELD_OPTIONS];
+        return prev.filter((l) => l !== label);
+      }
+      return [...prev, label];
+    });
+  };
+  const selectAllEvYields = () => setSelectedEvYields([...EV_YIELD_OPTIONS]);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -250,8 +357,46 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
         onStatsModeChange={setStatsMode}
         extraColumns={extraColumns}
         onToggleExtraColumn={toggleExtraColumn}
-        onSelectAllColumns={selectAllColumns}
-        onSelectNoneColumns={selectNoneColumns}
+        onRemoveAllColumns={removeAllColumns}
+        selectedEvYields={selectedEvYields}
+        onToggleEvYield={toggleEvYield}
+        onSelectAllEvYields={selectAllEvYields}
+        selectedGrowthRates={selectedGrowthRates}
+        onToggleGrowthRate={(value) => {
+          setSelectedGrowthRates((prev) => {
+            const allSelected = prev.length === allGrowthRates.length;
+            if (allSelected) return [value];
+            if (prev.includes(value)) {
+              if (prev.length === 1) return allGrowthRates.map((g) => g.value);
+              return prev.filter((v) => v !== value);
+            }
+            return [...prev, value];
+          });
+        }}
+        onSelectAllGrowthRates={() => setSelectedGrowthRates(allGrowthRates.map((g) => g.value))}
+        allGrowthRates={allGrowthRates}
+        selectedAvailability={selectedAvailability}
+        onToggleAvailability={(value) => {
+          setSelectedAvailability((prev) => {
+            const allSelected = prev.length === ALL_AVAILABILITY_VALUES.length;
+            if (allSelected) return [value];
+            if (prev.includes(value)) {
+              if (prev.length === 1) return [...ALL_AVAILABILITY_VALUES];
+              return prev.filter((v) => v !== value);
+            }
+            return [...prev, value];
+          });
+        }}
+        onSelectAllAvailability={() => setSelectedAvailability([...ALL_AVAILABILITY_VALUES])}
+        availabilityGroups={AVAILABILITY_GROUPS}
+        onRemoveFilters={() => {
+          setSearch("");
+          setSelectedTypes([...allTypes]);
+          setExtraColumns([]);
+          setSelectedEvYields([...EV_YIELD_OPTIONS]);
+          setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
+          setSelectedAvailability([...ALL_AVAILABILITY_VALUES]);
+        }}
       />
 
       <div className="w-full overflow-x-auto">
@@ -301,11 +446,12 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   </button>
                 </TableHead>
               ))}
-              {extraColumns.map((id) => {
+              {effectiveExtraColumns.map((id) => {
                 const opt = EXTRA_COLUMN_OPTIONS.find((o) => o.id === id);
                 const isNum = EXTRA_COLUMN_IS_NUMERIC[id];
+                const wClass = id === "availability" ? W_AVAILABILITY : isNum ? W_NUM : W_TEXT;
                 return (
-                  <TableHead key={id} className={cn(isNum ? W_NUM : W_TEXT, "group whitespace-nowrap")}>
+                  <TableHead key={id} className={cn(wClass, id === "availability" && "px-1.5", "group whitespace-nowrap")}>
                     <button
                       type="button"
                       onClick={() => handleSort(id)}
@@ -336,18 +482,18 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                       "rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       p.cryUrl && "cursor-pointer hover:opacity-80 active:scale-95 transition-all"
                     )}
-                    aria-label={p.cryUrl ? `Play ${p.name} cry` : undefined}
+                    aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
                   >
                     <Avatar className="size-8 overflow-hidden rounded-full border border-border bg-muted pointer-events-none">
                       {p.spriteUrl ? (
                         <AvatarImage
                           src={p.spriteUrl}
-                          alt={p.name}
+                          alt={getPokemonDisplayName(p.name)}
                           className="size-full object-contain object-center [transform-origin:center]"
                         />
                       ) : (
                         <AvatarFallback className="text-xs">
-                          {p.name.slice(0, 2)}
+                          {getPokemonDisplayName(p.name).slice(0, 2)}
                         </AvatarFallback>
                       )}
                     </Avatar>
@@ -356,8 +502,8 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                 <TableCell className={cn(W_NUM, "font-mono text-muted-foreground tabular-nums")}>
                   #{String(p.id).padStart(3, "0")}
                 </TableCell>
-                <TableCell className={cn(W_TEXT, "font-medium capitalize truncate")}>
-                  {p.name}
+                <TableCell className={cn(W_TEXT, "font-medium truncate")}>
+                  {getPokemonDisplayName(p.name)}
                 </TableCell>
                 <TableCell className={W_TEXT}>
                   <div className="flex flex-wrap gap-0.5">
@@ -384,17 +530,37 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                     )}
                   </TableCell>
                 ))}
-                {extraColumns.map((id) => (
+                {effectiveExtraColumns.map((id) => {
+                const wClass = id === "availability" ? W_AVAILABILITY : EXTRA_COLUMN_IS_NUMERIC[id] ? W_NUM : W_TEXT;
+                return (
                   <TableCell
                     key={id}
                     className={cn(
-                      EXTRA_COLUMN_IS_NUMERIC[id] ? W_NUM : W_TEXT,
+                      wClass,
+                      id === "availability" && "px-1.5",
                       EXTRA_COLUMN_IS_NUMERIC[id] ? "font-mono tabular-nums text-muted-foreground" : "text-muted-foreground"
                     )}
                   >
-                    {getExtraColumnValue(p, id)}
+                    {id === "availability" ? (
+                      <span className="whitespace-nowrap">
+                        {p.availability.split(",").map((s, i) => {
+                          const part = s.trim();
+                          const parts = p.availability.split(",");
+                          const isLast = i === parts.length - 1;
+                          return (
+                            <span key={i}>
+                              {renderAvailabilityPart(part)}
+                              {!isLast && ", "}
+                            </span>
+                          );
+                        })}
+                      </span>
+                    ) : (
+                      getExtraColumnValue(p, id)
+                    )}
                   </TableCell>
-                ))}
+                );
+              })}
               </TableRow>
             ))}
           </TableBody>

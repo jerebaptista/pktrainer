@@ -22,7 +22,9 @@ import { Search, ChevronDown } from "lucide-react";
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 
+/** All extra columns (Availability is fixed at end; not in select). */
 const EXTRA_COLUMN_OPTIONS = [
+  { id: "availability", label: "Availability" },
   { id: "baseExp", label: "Base Exp." },
   { id: "catchRate", label: "Catch rate" },
   { id: "evYield", label: "EV yield" },
@@ -31,6 +33,54 @@ const EXTRA_COLUMN_OPTIONS = [
   { id: "height", label: "Height" },
   { id: "weight", label: "Weight" },
 ] as const;
+
+/** Columns that can be toggled in the Columns popover (excludes Availability). */
+const SELECTABLE_EXTRA_COLUMN_OPTIONS = EXTRA_COLUMN_OPTIONS.filter((o) => o.id !== "availability");
+
+/** EV yield filter options (same order as stats). */
+const EV_YIELD_OPTIONS = ["HP", "Atk", "Def", "Sp. Atk", "Sp. Def", "Speed"] as const;
+
+/** Availability filter options: [Obtain], [Exclusives], [Evolutions], [Especial]. */
+export const AVAILABILITY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
+  {
+    label: "Obtain",
+    options: [
+      { value: "Wild", label: "Wild" },
+      { value: "NPC Trade", label: "NPC Trade" },
+      { value: "Gift", label: "Gift" },
+      { value: "Game Corner", label: "Game Corner" },
+      { value: "Fossil", label: "Fossil" },
+    ],
+  },
+  {
+    label: "Exclusives",
+    options: [
+      { value: "FR Only", label: "FR Only" },
+      { value: "LG Only", label: "LG Only" },
+    ],
+  },
+  {
+    label: "Evolutions",
+    options: [
+      { value: "Level", label: "By Level" },
+      { value: "Trade Evo", label: "Trade Evo" },
+      { value: "Fire Stone", label: "Fire Stone" },
+      { value: "Water Stone", label: "Water Stone" },
+      { value: "Thunder Stone", label: "Thunder Stone" },
+      { value: "Leaf Stone", label: "Leaf Stone" },
+      { value: "Moon Stone", label: "Moon Stone" },
+    ],
+  },
+  {
+    label: "Especial",
+    options: [
+      { value: "Event", label: "Event" },
+    ],
+  },
+];
+
+/** Flat list of all availability values (for initial selection and filtering). */
+export const ALL_AVAILABILITY_VALUES = AVAILABILITY_GROUPS.flatMap((g) => g.options.map((o) => o.value));
 
 export type ExtraColumnId = (typeof EXTRA_COLUMN_OPTIONS)[number]["id"];
 export type StatsMode = "base" | "max" | "min";
@@ -46,8 +96,22 @@ type PokedexFiltersProps = {
   onStatsModeChange: (v: StatsMode) => void;
   extraColumns: ExtraColumnId[];
   onToggleExtraColumn: (id: ExtraColumnId) => void;
-  onSelectAllColumns: () => void;
-  onSelectNoneColumns: () => void;
+  onRemoveAllColumns: () => void;
+  /** EV yield filter – only used when evYield column is visible */
+  selectedEvYields: string[];
+  onToggleEvYield: (label: string) => void;
+  onSelectAllEvYields: () => void;
+  /** Growth rate filter – only used when growthRate column is visible (multi-select like Columns) */
+  selectedGrowthRates: string[];
+  onToggleGrowthRate: (value: string) => void;
+  onSelectAllGrowthRates: () => void;
+  allGrowthRates: { value: string; label: string }[];
+  /** Availability filter – only when Availability column is visible; options grouped by Capture / Evolution / Special */
+  selectedAvailability: string[];
+  onToggleAvailability: (value: string) => void;
+  onSelectAllAvailability: () => void;
+  availabilityGroups: typeof AVAILABILITY_GROUPS;
+  onRemoveFilters: () => void;
 };
 
 export function PokedexFilters({
@@ -61,8 +125,19 @@ export function PokedexFilters({
   onStatsModeChange,
   extraColumns,
   onToggleExtraColumn,
-  onSelectAllColumns,
-  onSelectNoneColumns,
+  onRemoveAllColumns,
+  selectedEvYields,
+  onToggleEvYield,
+  onSelectAllEvYields,
+  selectedGrowthRates,
+  onToggleGrowthRate,
+  onSelectAllGrowthRates,
+  allGrowthRates,
+  selectedAvailability,
+  onToggleAvailability,
+  onSelectAllAvailability,
+  availabilityGroups,
+  onRemoveFilters,
 }: PokedexFiltersProps) {
   const hasTypeFilter = selectedTypes.length > 0 && selectedTypes.length < allTypes.length;
   const typeCountLabel =
@@ -74,6 +149,36 @@ export function PokedexFilters({
     hasColumnsActive ? (
       <span className="text-xs font-semibold text-primary">{extraColumns.length}</span>
     ) : null;
+  const showEvYieldFilter = extraColumns.includes("evYield");
+  const hasEvYieldFilter =
+    selectedEvYields.length > 0 && selectedEvYields.length < EV_YIELD_OPTIONS.length;
+  const evYieldCountLabel =
+    hasEvYieldFilter ? (
+      <span className="text-xs font-semibold text-primary">{selectedEvYields.length}</span>
+    ) : null;
+  const showGrowthRateFilter = extraColumns.includes("growthRate");
+  const hasGrowthRateFilter =
+    showGrowthRateFilter &&
+    selectedGrowthRates.length > 0 &&
+    selectedGrowthRates.length < allGrowthRates.length;
+  const growthRateCountLabel =
+    hasGrowthRateFilter ? (
+      <span className="text-xs font-semibold text-primary">{selectedGrowthRates.length}</span>
+    ) : null;
+  const allAvailabilityValues = availabilityGroups.flatMap((g) => g.options.map((o) => o.value));
+  const hasAvailabilityFilter =
+    selectedAvailability.length > 0 && selectedAvailability.length < allAvailabilityValues.length;
+  const availabilityCountLabel =
+    hasAvailabilityFilter ? (
+      <span className="text-xs font-semibold text-primary">{selectedAvailability.length}</span>
+    ) : null;
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    (allTypes.length > 0 && selectedTypes.length < allTypes.length) ||
+    extraColumns.length > 0 ||
+    (showEvYieldFilter && selectedEvYields.length < EV_YIELD_OPTIONS.length) ||
+    (allGrowthRates.length > 0 && selectedGrowthRates.length < allGrowthRates.length) ||
+    selectedAvailability.length < allAvailabilityValues.length;
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* 1. Search */}
@@ -150,7 +255,7 @@ export function PokedexFilters({
         </SelectContent>
       </Select>
 
-      {/* 4. Columns: count only when > 0; Select all / None below options */}
+      {/* 4. Columns: all start unchecked; count when any selected; Remove all when any selected */}
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
@@ -168,7 +273,7 @@ export function PokedexFilters({
         </PopoverTrigger>
         <PopoverContent className="w-56 border-border p-2" align="start">
           <div className="flex flex-col gap-1">
-            {EXTRA_COLUMN_OPTIONS.map((opt) => (
+            {SELECTABLE_EXTRA_COLUMN_OPTIONS.map((opt) => (
               <label
                 key={opt.id}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-accent"
@@ -181,18 +286,159 @@ export function PokedexFilters({
               </label>
             ))}
           </div>
-          <div className="mt-2 flex gap-1 border-t border-border pt-2">
-            <Button type="button" variant="ghost" size="sm" className="h-7 flex-1 text-xs font-normal" onClick={onSelectAllColumns}>
-              Select all
-            </Button>
-            <Button type="button" variant="ghost" size="sm" className="h-7 flex-1 text-xs font-normal" onClick={onSelectNoneColumns}>
-              None
-            </Button>
-          </div>
+          {hasColumnsActive && (
+            <div className="mt-2 flex gap-1 border-t border-border pt-2">
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onRemoveAllColumns}>
+                Remove all
+              </Button>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
+
+      {/* 5. EV yield filter – only when EV yield column is visible */}
+      {showEvYieldFilter && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                EV yield
+                {evYieldCountLabel != null && (
+                  <>
+                    {" "}
+                    {evYieldCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 border-border p-2" align="start">
+            <div className="flex flex-col gap-1">
+              {EV_YIELD_OPTIONS.map((label) => (
+                <label
+                  key={label}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={selectedEvYields.includes(label)}
+                    onCheckedChange={() => onToggleEvYield(label)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {hasEvYieldFilter && (
+            <div className="mt-2 flex gap-1 border-t border-border pt-2">
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onSelectAllEvYields}>
+                Select all
+              </Button>
+            </div>
+          )}
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* 6. Growth rate filter – only when Growth Rate column is visible (multi-select like Columns) */}
+      {showGrowthRateFilter && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                Growth rate
+                {growthRateCountLabel != null && (
+                  <>
+                    {" "}
+                    {growthRateCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 border-border p-2" align="start">
+            <div className="flex flex-col gap-1">
+              {allGrowthRates.map(({ value, label }) => (
+                <label
+                  key={value}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-muted"
+                >
+                  <Checkbox
+                    checked={selectedGrowthRates.includes(value)}
+                    onCheckedChange={() => onToggleGrowthRate(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {hasGrowthRateFilter && (
+            <div className="mt-2 flex gap-1 border-t border-border pt-2">
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onSelectAllGrowthRates}>
+                Select all
+              </Button>
+            </div>
+          )}
+          </PopoverContent>
+        </Popover>
+      )}
+
+      {/* Availability filter – always visible as the last filter */}
+      <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                Availability
+                {availabilityCountLabel != null && (
+                  <>
+                    {" "}
+                    {availabilityCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 border-border p-2" align="start">
+            <div className="flex flex-col gap-2">
+              {availabilityGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="mb-1 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                    {group.label}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {group.options.map((opt) => (
+                      <label
+                        key={opt.value}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-muted"
+                      >
+                        <Checkbox
+                          checked={selectedAvailability.includes(opt.value)}
+                          onCheckedChange={() => onToggleAvailability(opt.value)}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {hasAvailabilityFilter && (
+            <div className="mt-2 flex gap-1 border-t border-border pt-2">
+              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onSelectAllAvailability}>
+                Select all
+              </Button>
+            </div>
+          )}
+          </PopoverContent>
+        </Popover>
+
+      {hasActiveFilters && (
+        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs font-normal" onClick={onRemoveFilters}>
+          Remove filters
+        </Button>
+      )}
     </div>
   );
 }
 
-export { EXTRA_COLUMN_OPTIONS };
+export { EXTRA_COLUMN_OPTIONS, EV_YIELD_OPTIONS };

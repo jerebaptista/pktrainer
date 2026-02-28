@@ -20,12 +20,16 @@ export type PokemonFromAPI = {
     stat: { name: string; url: string };
   }>;
   cries?: { latest: string; legacy: string };
+  game_indices?: Array<{ game_index: number; version: { name: string; url: string } }>;
 };
 
 export type SpeciesFromAPI = {
+  name: string;
   base_happiness: number | null;
   capture_rate: number | null;
   growth_rate: { name: string };
+  evolution_chain?: { url: string };
+  evolves_from_species?: { name: string; url: string } | null;
 };
 
 export type BaseStats = {
@@ -66,6 +70,7 @@ export type PokemonRow = {
   baseFriendship: number | null;
   catchRate: number | null;
   growthRate: string;
+  availability: string;
 };
 
 const STAT_TO_LABEL: Record<string, string> = {
@@ -83,6 +88,17 @@ function buildEvYield(stats: PokemonFromAPI["stats"]): string {
     .map((s) => `${s.effort} ${STAT_TO_LABEL[s.stat.name] ?? s.stat.name}`);
   return parts.length ? parts.join(", ") : "—";
 }
+
+import {
+  buildAvailability,
+  getTradeEvolvedSpeciesFromChain,
+  getStoneEvolvedSpeciesFromChain,
+  getLevelEvolvedSpeciesFromChain,
+  FR_ONLY_LABEL,
+  LG_ONLY_LABEL,
+  type EncounterEntry,
+  type EvolutionChainNode,
+} from "./api-adjustments";
 
 export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
   const ids = Array.from({ length: KANTO_DEX_LIMIT }, (_, i) => i + 1);
@@ -102,6 +118,52 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
       )
     )
   );
+
+  const encounterList = await Promise.all(
+    ids.map((id) =>
+      fetch(`${POKEAPI_BASE}/pokemon/${id}/encounters`, {
+        next: { revalidate: 3600 },
+      }).then((res) => res.json() as Promise<EncounterEntry[]>)
+    )
+  );
+
+  const chainUrls = [...new Set(speciesList.map((s) => s?.evolution_chain?.url).filter(Boolean))] as string[];
+  const chainList = await Promise.all(
+    chainUrls.map((url) =>
+      fetch(url, { next: { revalidate: 3600 } }).then(
+        (res) => res.json() as Promise<{ chain: EvolutionChainNode }>
+      )
+    )
+  );
+  const tradeEvolvedSpecies = new Set<string>();
+  const stoneEvolvedSpecies = new Map<string, string>();
+  const levelEvolvedSpecies = new Map<string, number>();
+  for (const { chain } of chainList) {
+    getTradeEvolvedSpeciesFromChain(chain, tradeEvolvedSpecies);
+    getStoneEvolvedSpeciesFromChain(chain, stoneEvolvedSpecies);
+    getLevelEvolvedSpeciesFromChain(chain, levelEvolvedSpecies);
+  }
+
+  const speciesExclusivity = new Map<string, string>();
+  for (let i = 0; i < pokemonList.length; i++) {
+    const encounters = encounterList[i] ?? [];
+    const versions = new Set<string>();
+    for (const area of encounters) {
+      for (const vd of area.version_details ?? []) {
+        const v = vd.version?.name?.toLowerCase();
+        if (v === "firered" || v === "leafgreen") versions.add(v);
+      }
+    }
+    if (versions.size === 1) {
+      const speciesName = speciesList[i]?.name;
+      if (speciesName) {
+        speciesExclusivity.set(
+          speciesName.toLowerCase(),
+          versions.has("firered") ? FR_ONLY_LABEL : LG_ONLY_LABEL
+        );
+      }
+    }
+  }
 
   return pokemonList.map((p, i) => {
     const species = speciesList[i];
@@ -166,6 +228,16 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
       baseFriendship: species?.base_happiness ?? null,
       catchRate: species?.capture_rate ?? null,
       growthRate: species?.growth_rate?.name ?? "—",
+      availability: buildAvailability({
+      pokemonId: p.id,
+      encounters: encounterList[i] ?? [],
+      speciesName: species?.name ?? p.name,
+      tradeEvolvedSpecies,
+      stoneEvolvedSpecies,
+      levelEvolvedSpecies,
+      speciesExclusivity,
+      evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
+    }),
     };
   });
 }
