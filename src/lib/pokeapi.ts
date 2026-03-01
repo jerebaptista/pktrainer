@@ -11,7 +11,21 @@ export type PokemonFromAPI = {
   base_experience: number | null;
   height: number;
   weight: number;
-  sprites: { front_default: string | null };
+  abilities?: Array<{
+    ability: { name: string; url: string };
+    is_hidden: boolean;
+    slot: number;
+  }>;
+  sprites: {
+    front_default: string | null;
+    front_female?: string | null;
+    front_shiny?: string | null;
+    front_shiny_female?: string | null;
+    back_default?: string | null;
+    back_female?: string | null;
+    back_shiny?: string | null;
+    back_shiny_female?: string | null;
+  };
   species: { name: string; url: string };
   types: Array<{ slot: number; type: { name: string; url: string } }>;
   stats: Array<{
@@ -30,6 +44,12 @@ export type SpeciesFromAPI = {
   growth_rate: { name: string };
   evolution_chain?: { url: string };
   evolves_from_species?: { name: string; url: string } | null;
+  genera?: Array<{ genus: string; language: { name: string } }>;
+  flavor_text_entries?: Array<{
+    flavor_text: string;
+    language: { name: string };
+    version: { name: string };
+  }>;
 };
 
 export type BaseStats = {
@@ -58,6 +78,13 @@ export type PokemonRow = {
   id: number;
   name: string;
   spriteUrl: string | null;
+  spriteUrlShiny: string | null;
+  spriteUrlFemale: string | null;
+  spriteUrlShinyFemale: string | null;
+  spriteUrlBack: string | null;
+  spriteUrlBackShiny: string | null;
+  spriteUrlBackFemale: string | null;
+  spriteUrlBackShinyFemale: string | null;
   cryUrl: string | null;
   types: string[];
   baseStats: BaseStats;
@@ -73,6 +100,22 @@ export type PokemonRow = {
   availability: string;
   /** Pre-evolution species name (for tooltips: Lv., stones, Trade Evo). */
   evolvesFromSpeciesName: string | null;
+  /** Species genus (e.g. "Seed Pokémon"). */
+  speciesGenus: string;
+  /** Flavor text for FireRed (en). */
+  flavorTextFireRed: string | null;
+  /** Flavor text for LeafGreen (en). */
+  flavorTextLeafGreen: string | null;
+  /** Abilities: name and whether hidden. */
+  abilities: Array<{ name: string; isHidden: boolean }>;
+  /** Encounter locations with version/method details (for detail page). */
+  encounters: Array<{
+    locationAreaName: string;
+    versionDetails: Array<{
+      versionName: string;
+      encounterDetails: Array<{ methodName: string; minLevel: number; maxLevel: number }>;
+    }>;
+  }>;
 };
 
 const STAT_TO_LABEL: Record<string, string> = {
@@ -89,6 +132,49 @@ function buildEvYield(stats: PokemonFromAPI["stats"]): string {
     .filter((s) => s.effort > 0)
     .map((s) => `${s.effort} ${STAT_TO_LABEL[s.stat.name] ?? s.stat.name}`);
   return parts.length ? parts.join(", ") : "—";
+}
+
+function getGenusEn(species: SpeciesFromAPI | undefined): string {
+  const entry = species?.genera?.find((g) => g.language.name === "en");
+  return entry?.genus ?? "—";
+}
+
+function getFlavorTextEn(
+  species: SpeciesFromAPI | undefined,
+  version: "firered" | "leafgreen"
+): string | null {
+  const entry = species?.flavor_text_entries?.find(
+    (e) => e.language.name === "en" && e.version.name === version
+  );
+  if (!entry?.flavor_text) return null;
+  return entry.flavor_text.replace(/\f/g, " ").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Encounter API response shape (for mapping to PokemonRow.encounters). */
+type EncounterApiEntry = {
+  location_area?: { name?: string };
+  version_details?: Array<{
+    version?: { name?: string };
+    encounter_details?: Array<{
+      method?: { name?: string };
+      min_level?: number;
+      max_level?: number;
+    }>;
+  }>;
+};
+
+function buildEncountersList(entries: EncounterApiEntry[]): PokemonRow["encounters"] {
+  return entries.map((area) => ({
+    locationAreaName: area.location_area?.name ?? "—",
+    versionDetails: (area.version_details ?? []).map((vd) => ({
+      versionName: vd.version?.name ?? "—",
+      encounterDetails: (vd.encounter_details ?? []).map((ed) => ({
+        methodName: ed.method?.name ?? "—",
+        minLevel: ed.min_level ?? 0,
+        maxLevel: ed.max_level ?? 0,
+      })),
+    })),
+  }));
 }
 
 import {
@@ -214,12 +300,25 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
       minStats.specialDefense +
       minStats.speed;
 
+    const sp = p.sprites;
     return {
       id: p.id,
       name: p.name,
-      spriteUrl: p.sprites.front_default ?? null,
+      spriteUrl: sp.front_default ?? null,
+      spriteUrlShiny: sp.front_shiny ?? null,
+      spriteUrlFemale: sp.front_female ?? null,
+      spriteUrlShinyFemale: sp.front_shiny_female ?? null,
+      spriteUrlBack: sp.back_default ?? null,
+      spriteUrlBackShiny: sp.back_shiny ?? null,
+      spriteUrlBackFemale: sp.back_female ?? null,
+      spriteUrlBackShinyFemale: sp.back_shiny_female ?? null,
       cryUrl: p.cries?.latest ?? null,
       types: p.types.map((t) => t.type.name),
+      abilities: (p.abilities ?? []).map((a) => ({
+        name: a.ability.name,
+        isHidden: a.is_hidden,
+      })),
+      encounters: buildEncountersList((encounterList[i] ?? []) as EncounterApiEntry[]),
       baseStats: { ...base, bst },
       maxStats,
       minStats,
@@ -241,6 +340,9 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
       evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
     }),
       evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
+      speciesGenus: getGenusEn(species),
+      flavorTextFireRed: getFlavorTextEn(species, "firered"),
+      flavorTextLeafGreen: getFlavorTextEn(species, "leafgreen"),
     };
   });
 }

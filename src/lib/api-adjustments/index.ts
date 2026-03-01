@@ -31,3 +31,11 @@ export {
   type EvolutionChainNode,
   type BuildAvailabilityParams,
 } from "./availability";
+
+export {
+  getEncounterDisplayContent,
+  type EncounterDisplayResult,
+  type ThemeVersion,
+} from "./encounter-display";
+
+export { getLocationDisplayName } from "./location-display-names";

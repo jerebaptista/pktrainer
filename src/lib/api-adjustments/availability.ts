@@ -48,12 +48,26 @@ const FOSSIL_LABEL = "Fossil";
 /** Hitmonlee, Hitmonchan: only Gift (Dojo), no Lv. evolution label. */
 export const GIFT_ONLY_IDS = new Set([106, 107]);
 
-/** Wild but only in LeafGreen (Muk, Kingler) – show as "Wild LG" with small LG. */
-export const WILD_LG_ONLY_IDS = new Set([89, 99]);
+/** Wild but only in LeafGreen – show as "Wild LG" with small LG. */
+export const WILD_LG_ONLY_IDS = new Set([
+  27, 28,   // Sandshrew, Sandslash
+  37, 38,   // Vulpix, Ninetales
+  52, 53,   // Meowth, Persian
+  69, 70, 71,  // Bellsprout, Weepinbell, Victreebel
+  89, 99,   // Muk, Kingler
+  126,      // Magmar
+]);
 const WILD_LG_LABEL = "Wild LG";
 
-/** Wild but only in FireRed (Weezing, Seadra) – show as "Wild FR" with small FR. */
-export const WILD_FR_ONLY_IDS = new Set([110, 117]);
+/** Wild but only in FireRed – show as "Wild FR" with small FR. */
+export const WILD_FR_ONLY_IDS = new Set([
+  23, 24,   // Ekans, Arbok
+  43, 44, 45, 182,  // Oddish, Gloom, Vileplume, Bellossom
+  56, 57,   // Mankey, Primeape
+  58, 59,   // Growlithe, Arcanine
+  110, 117, // Weezing, Seadra
+  125,      // Electabuzz
+]);
 const WILD_FR_LABEL = "Wild FR";
 
 /** Don't show level evolution prefix (Electabuzz, Magmar). */

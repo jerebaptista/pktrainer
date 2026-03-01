@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
@@ -549,7 +550,12 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   #{String(p.id).padStart(3, "0")}
                 </TableCell>
                 <TableCell className={cn(W_TEXT, "font-medium truncate")}>
-                  {getPokemonDisplayName(p.name)}
+                  <Link
+                    href={`/pokedex/${p.name}`}
+                    className="text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  >
+                    {getPokemonDisplayName(p.name)}
+                  </Link>
                 </TableCell>
                 <TableCell className={W_TEXT}>
                   <div className="flex flex-wrap gap-0.5">

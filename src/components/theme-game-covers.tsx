@@ -28,7 +28,18 @@ export function ThemeGameCovers({ className }: { className?: string }) {
     if (!mounted) return;
     document.documentElement.setAttribute("data-theme", themeColor);
     localStorage.setItem(THEME_COLOR_KEY, themeColor);
+    window.dispatchEvent(new CustomEvent("pk-trainer-theme-color-change", { detail: { theme: themeColor } }));
   }, [themeColor, mounted]);
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ theme?: ThemeColor }>;
+      const next = customEvent.detail?.theme;
+      if (next === "red" || next === "green") setThemeColor(next);
+    };
+    window.addEventListener("pk-trainer-theme-color-change", onThemeChange);
+    return () => window.removeEventListener("pk-trainer-theme-color-change", onThemeChange);
+  }, []);
 
   if (!mounted) {
     return (
