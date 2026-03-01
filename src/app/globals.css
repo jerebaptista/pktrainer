@@ -29,6 +29,13 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  /* Stat chart range (temperature-like): 0–24 Red → 200–255 Cyan */
+  --chart-stat-red: #ef4444;
+  --chart-stat-orange: #f97316;
+  --chart-stat-amber: #f59e0b;
+  --chart-stat-lime: #84cc16;
+  --chart-stat-emerald: #10b981;
+  --chart-stat-cyan: #06b6d4;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -64,6 +71,12 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  --chart-stat-red: #f87171;
+  --chart-stat-orange: #fb923c;
+  --chart-stat-amber: #fbbf24;
+  --chart-stat-lime: #a3e635;
+  --chart-stat-emerald: #34d399;
+  --chart-stat-cyan: #22d3ee;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -91,6 +104,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-chart-stat-red: var(--chart-stat-red);
+  --color-chart-stat-orange: var(--chart-stat-orange);
+  --color-chart-stat-amber: var(--chart-stat-amber);
+  --color-chart-stat-lime: var(--chart-stat-lime);
+  --color-chart-stat-emerald: var(--chart-stat-emerald);
+  --color-chart-stat-cyan: var(--chart-stat-cyan);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -116,13 +135,19 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Theme: Green (LeafGreen) – primary in green; accent/hover stay neutral (muted gray) */
+/* Theme: Green (LeafGreen) – primary in green; charts green palette */
 [data-theme="green"] {
   --primary: oklch(0.45 0.13 155);
   --primary-foreground: oklch(0.985 0 0);
   --ring: oklch(0.5 0.14 155);
   --sidebar-primary: oklch(0.45 0.13 155);
   --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* Tailwind green: 600, 500, 400, 300, 200 */
+  --chart-1: #16a34a;
+  --chart-2: #22c55e;
+  --chart-3: #4ade80;
+  --chart-4: #86efac;
+  --chart-5: #bbf7d0;
 }
 [data-theme="green"].dark {
   --primary: oklch(0.65 0.15 155);
@@ -130,15 +155,27 @@ body {
   --ring: oklch(0.6 0.14 155);
   --sidebar-primary: oklch(0.55 0.12 155);
   --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* Tailwind green (dark): 500, 400, 300, 600, 400 – mais visível em fundo escuro */
+  --chart-1: #22c55e;
+  --chart-2: #4ade80;
+  --chart-3: #86efac;
+  --chart-4: #16a34a;
+  --chart-5: #4ade80;
 }
 
-/* Theme: Red (FireRed) – primary in red; accent/hover stay neutral (muted gray) */
+/* Theme: Red (FireRed) – primary in red; charts red palette */
 [data-theme="red"] {
   --primary: oklch(0.55 0.2 25);
   --primary-foreground: oklch(0.985 0 0);
   --ring: oklch(0.6 0.2 25);
   --sidebar-primary: oklch(0.55 0.2 25);
   --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* Tailwind red: 600, 500, 400, 300, 200 */
+  --chart-1: #dc2626;
+  --chart-2: #ef4444;
+  --chart-3: #f87171;
+  --chart-4: #fca5a5;
+  --chart-5: #fecaca;
 }
 [data-theme="red"].dark {
   --primary: oklch(0.65 0.18 25);
@@ -146,4 +183,10 @@ body {
   --ring: oklch(0.6 0.18 25);
   --sidebar-primary: oklch(0.58 0.18 25);
   --sidebar-primary-foreground: oklch(0.985 0 0);
+  /* Tailwind red (dark): 500, 400, 300, 600, 400 – mais visível em fundo escuro */
+  --chart-1: #ef4444;
+  --chart-2: #f87171;
+  --chart-3: #fca5a5;
+  --chart-4: #dc2626;
+  --chart-5: #f87171;
 }
