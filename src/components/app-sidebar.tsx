@@ -29,6 +29,7 @@ const navPokedex = [
 const navGuides = [
   { label: "Walkthrough", href: "/walkthrough" },
   { label: "Locations", href: "/locations" },
+  { label: "Items", href: "/items" },
   { label: "About", href: "/about" },
 ];
 
