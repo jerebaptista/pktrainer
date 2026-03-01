@@ -48,6 +48,7 @@ export const AVAILABILITY_GROUPS: { label: string; options: { value: string; lab
       { value: "Grass", label: "Grass" },
       { value: "Surf", label: "Surf" },
       { value: "Fishing", label: "Fishing" },
+      { value: "Static", label: "Static" },
     ],
   },
   {

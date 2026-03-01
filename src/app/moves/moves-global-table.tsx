@@ -22,12 +22,16 @@ import {
   Drawer,
   DrawerContent,
 } from "@/components/ui/drawer";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "@/components/ui/avatar";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
+import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { GlobalMoveRow, MoveLearnIndex } from "@/lib/moves-table";
 import type { PokemonRow } from "@/lib/pokeapi";
 import { MoveDrawerContent } from "./move-drawer-content";
+
+const MAX_VISIBLE_SPRITES = 3;
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 const CATEGORY_OPTIONS = ["Physical", "Special", "Status"] as const;
@@ -194,6 +198,43 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
     setDrawerOpen(true);
   };
 
+  const getMovePokemonIds = (row: GlobalMoveRow): number[] => {
+    const apiName = row.moveName.replace(/\s/g, "-");
+    const levelUp = learnIndex.levelUp.get(apiName) ?? [];
+    const breeding = learnIndex.breeding.get(apiName) ?? [];
+    const ids = new Set([
+      ...levelUp.map((e) => e.pokemonId),
+      ...breeding,
+    ]);
+    return Array.from(ids).sort((a, b) => a - b);
+  };
+
+  const renderMoveSpriteCell = (row: GlobalMoveRow) => {
+    const ids = getMovePokemonIds(row);
+    const toShow = ids.slice(0, MAX_VISIBLE_SPRITES);
+    const remaining = ids.length - MAX_VISIBLE_SPRITES;
+    const pokemonToShow = toShow
+      .map((id) => pokemonList.find((p) => p.id === id))
+      .filter((p): p is PokemonRow => p != null);
+    if (pokemonToShow.length === 0) return null;
+    return (
+      <AvatarGroup className="flex shrink-0 flex-wrap justify-start gap-0">
+        {pokemonToShow.map((p) => (
+          <Avatar key={p.id} className="size-8 border border-border bg-muted">
+            {p.spriteUrl ? (
+              <AvatarImage src={p.spriteUrl} alt={getPokemonDisplayName(p.name)} className="object-contain" />
+            ) : (
+              <AvatarFallback className="text-xs">{getPokemonDisplayName(p.name).slice(0, 2)}</AvatarFallback>
+            )}
+          </Avatar>
+        ))}
+        {remaining > 0 && (
+          <AvatarGroupCount className="text-xs font-semibold">+{remaining}</AvatarGroupCount>
+        )}
+      </AvatarGroup>
+    );
+  };
+
   return (
     <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
     <div className="space-y-3">
@@ -201,7 +242,7 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
         <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
           <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
           <Input
-            placeholder="Search..."
+            placeholder="Search by Name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8"
@@ -348,6 +389,7 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-32 shrink-0 px-2 py-2" />
               {columns.map(({ key, label }) => (
                 <TableHead
                   key={key}
@@ -369,17 +411,20 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
             {sorted.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={columns.length + 1}
                   className="py-8 text-center text-muted-foreground text-sm"
                 >
-                  Nenhum move encontrado.
+                  No moves found.
                 </TableCell>
               </TableRow>
             ) : (
               sorted.map((row, i) => (
                 <TableRow key={`${row.moveName}-${i}`}>
+                  <TableCell className="w-12 shrink-0 px-2 py-2 align-middle">
+                    {renderMoveSpriteCell(row)}
+                  </TableCell>
                   {columns.map(({ key }) => (
-                    <TableCell key={key} className={cn("px-2 py-1.5 text-sm", getCellClassName(key))}>
+                    <TableCell key={key} className={cn("px-2 py-2 text-sm", getCellClassName(key))}>
                       {key === "type" ? (
                         <Badge
                           variant="secondary"

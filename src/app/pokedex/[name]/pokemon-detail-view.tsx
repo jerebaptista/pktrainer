@@ -423,6 +423,45 @@ export function PokemonDetailView({ pokemon, allNames, movesTableData }: Pokemon
                         </div>
                       );
                     }
+                    if (block.type === "static") {
+                      const locationLinks = block.locationLinks;
+                      if (locationLinks?.length) {
+                        type Seg = string | { slug: string; textInGift: string };
+                        let text = block.text;
+                        const segments: Seg[] = [];
+                        for (const link of locationLinks) {
+                          const i = text.indexOf(link.textInGift);
+                          if (i === -1) continue;
+                          segments.push(text.slice(0, i));
+                          segments.push(link);
+                          text = text.slice(i + link.textInGift.length);
+                        }
+                        segments.push(text);
+                        return (
+                          <span key={idx} className="text-sm text-foreground">
+                            {segments.map((seg, i) =>
+                              typeof seg === "string" ? (
+                                seg
+                              ) : (
+                                <Button
+                                  key={i}
+                                  variant="link"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                  asChild
+                                >
+                                  <Link href={`/locations/${seg.slug}`}>{seg.textInGift}</Link>
+                                </Button>
+                              )
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={idx} className="text-sm text-foreground">
+                          {block.text}
+                        </span>
+                      );
+                    }
                     if (block.type === "gift") {
                       const locationLinks = block.locationLinks;
                       if (locationLinks?.length) {

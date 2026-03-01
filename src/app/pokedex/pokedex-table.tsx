@@ -209,6 +209,9 @@ function getExtraColumnValue(p: PokemonRow, id: ExtraColumnId): string | number 
   }
 }
 
+/** Debug: true = ignorar todos os filtros e mostrar exatamente o que veio em data. Use para testar se 143–146 e 150 estão nos dados. */
+const SKIP_FILTERS_DEBUG = false;
+
 export function PokedexTable({ data }: { data: PokemonRow[] }) {
   const [search, setSearch] = useState("");
   const allTypes = useMemo(
@@ -254,20 +257,26 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   }, [allGrowthRates]);
 
   const filtered = useMemo(() => {
+    if (SKIP_FILTERS_DEBUG) return data;
     let list = data;
+    const isStatic = (p: { availability: string }) => p.availability.trim() === "Static";
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((p) => {
+        if (isStatic(p)) return true;
         const paddedId = String(p.id).padStart(3, "0");
         const displayName = getPokemonDisplayName(p.name).toLowerCase();
         return paddedId.includes(q) || p.name.toLowerCase().includes(q) || displayName.includes(q);
       });
     }
     if (selectedTypes.length > 0) {
-      list = list.filter((p) => p.types.some((t) => selectedTypes.includes(t)));
+      list = list.filter((p) => isStatic(p) || p.types.some((t) => selectedTypes.includes(t)));
     }
     if (selectedEvYields.length > 0) {
       list = list.filter((p) => {
+        if (isStatic(p)) return true;
+        const y = (p.evYield ?? "").trim();
+        if (!y || y === "—") return true;
         const parts = p.evYield.split(", ");
         return selectedEvYields.some(
           (ev) =>
@@ -279,10 +288,11 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
       });
     }
     if (selectedGrowthRates.length > 0) {
-      list = list.filter((p) => selectedGrowthRates.includes(p.growthRate));
+      list = list.filter((p) => isStatic(p) || selectedGrowthRates.includes(p.growthRate));
     }
     if (selectedAvailability.length > 0) {
       list = list.filter((p) => {
+        if (isStatic(p)) return true;
         const parts = p.availability.split(",").map((s) => s.trim());
         return selectedAvailability.some((selected) => {
           if (selected === "Level") return parts.some((part) => part.startsWith("Lv."));

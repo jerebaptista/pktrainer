@@ -27,6 +27,9 @@ export type EvolutionChainNode = {
 
 const MEW_ID = 151;
 const EVENT_LABEL = "Event";
+/** Snorlax, Articuno, Zapdos, Moltres, Mewtwo – Static (fixed encounter) in FRLG when no encounter data. */
+const STATIC_LABEL = "Static";
+const STATIC_IDS = new Set([143, 144, 145, 146, 150]);
 
 export const GAME_CORNER_IDS = new Set([35, 63, 123, 127, 137, 147]);
 export const GAME_CORNER_FR_ONLY_IDS = new Set([123]);
@@ -193,6 +196,7 @@ export function buildAvailability(params: BuildAvailabilityParams): string {
   } = params;
 
   if (pokemonId === MEW_ID) return EVENT_LABEL;
+  if (STATIC_IDS.has(pokemonId)) return STATIC_LABEL;
   const key = speciesName.toLowerCase();
   const versions = new Set<string>();
   let onlyGift = true;

@@ -177,6 +177,14 @@ export function MovesTableSection({ tabId, rows }: MovesTableSectionProps) {
     return String(value);
   };
 
+  const getCellClassName = (key: SortKey): string => {
+    if (key === "moveName") return "text-foreground font-semibold";
+    if (key === "level" || key === "id" || key === "power" || key === "accuracy" || key === "pp") {
+      return "font-mono tabular-nums text-muted-foreground";
+    }
+    return "text-muted-foreground";
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -279,7 +287,7 @@ export function MovesTableSection({ tabId, rows }: MovesTableSectionProps) {
         </Popover>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="overflow-x-auto rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
@@ -308,7 +316,7 @@ export function MovesTableSection({ tabId, rows }: MovesTableSectionProps) {
               sorted.map((row, i) => (
                 <TableRow key={`${row.moveName}-${row.level ?? row.id ?? i}`}>
                   {columns.filter((c) => c.show).map(({ key }) => (
-                    <TableCell key={key} className="px-2 py-1.5 text-sm">
+                    <TableCell key={key} className={cn("px-2 py-1.5 text-sm", getCellClassName(key))}>
                       {key === "type" ? (
                         <Badge
                           variant="secondary"

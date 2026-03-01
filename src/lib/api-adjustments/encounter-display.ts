@@ -40,7 +40,8 @@ type EncounterBlock =
   | { type: "buy"; text: string; locationLinks?: GiftLocationLink[] }
   | { type: "evolution"; text: string; links?: EvolutionLink[] }
   | { type: "event"; text: string }
-  | { type: "evolution-only"; text: string };
+  | { type: "evolution-only"; text: string }
+  | { type: "static"; text: string; locationLinks?: GiftLocationLink[] };
 
 /** Evolution block: link to pre-evolution Pokémon. */
 export type EvolutionLink = { slug: string; textInBlock: string };
@@ -172,6 +173,33 @@ const FOSSIL_BLOCK_BY_ID: Record<
       { slug: "old-amber", textInBlock: "Old Amber", linkType: "item" },
       { slug: FOSSIL_REVIVE_LOCATION_SLUG, textInBlock: FOSSIL_REVIVE_LOCATION_NAME, linkType: "location" },
     ],
+  },
+};
+
+/** Static (fixed) encounters in FRLG: one per location or use Poké Flute. */
+const STATIC_BLOCK_BY_ID: Record<number, { text: string; locationLinks: GiftLocationLink[] }> = {
+  143: {
+    text: "Use the Poké Flute in Route 12, Route 16",
+    locationLinks: [
+      { slug: "kanto-route-12-area", textInGift: "Route 12" },
+      { slug: "kanto-route-16-area", textInGift: "Route 16" },
+    ],
+  },
+  144: {
+    text: "Only one in Seafoam Islands",
+    locationLinks: [{ slug: "seafoam-islands-1f", textInGift: "Seafoam Islands" }],
+  },
+  145: {
+    text: "Only one in Power Plant",
+    locationLinks: [{ slug: "power-plant-area", textInGift: "Power Plant" }],
+  },
+  146: {
+    text: "Only one in Mt. Ember",
+    locationLinks: [{ slug: "mt-ember-summit", textInGift: "Mt. Ember" }],
+  },
+  150: {
+    text: "Only one in Cerulean Cave",
+    locationLinks: [{ slug: "cerulean-cave-1f", textInGift: "Cerulean Cave" }],
   },
 };
 
@@ -390,6 +418,19 @@ export function getEncounterDisplayContent(
   if (pokemonId === MEW_ID) {
     blocks.push({ type: "event", text: "Distributed at promotional events" });
     return { blocks };
+  }
+
+  // Static (Snorlax, Articuno, Zapdos, Moltres, Mewtwo) – fixed encounter description with locations
+  if (av.trim() === "Static") {
+    const staticBlock = STATIC_BLOCK_BY_ID[pokemonId];
+    if (staticBlock) {
+      blocks.push({
+        type: "static",
+        text: staticBlock.text,
+        locationLinks: staticBlock.locationLinks,
+      });
+      return { blocks };
+    }
   }
 
   const version = isFR ? "firered" : "leafgreen";

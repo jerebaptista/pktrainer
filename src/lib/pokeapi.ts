@@ -330,6 +330,14 @@ const MINIMAL_STATS: Record<number, number[]> = {
   146: [90, 100, 90, 125, 85, 90],
   150: [106, 110, 90, 154, 90, 130],
 };
+/** EV yield by id: index 0=hp, 1=attack, 2=defense, 3=special-attack, 4=special-defense, 5=speed. */
+const MINIMAL_EFFORT: Record<number, number[]> = {
+  143: [2, 0, 0, 0, 0, 0],       // Snorlax: 2 HP
+  144: [0, 0, 0, 0, 3, 0],       // Articuno: 3 Sp. Def
+  145: [0, 0, 0, 3, 0, 0],       // Zapdos: 3 Sp. Atk
+  146: [0, 0, 0, 0, 3, 0],       // Moltres: 3 Sp. Def
+  150: [0, 0, 0, 3, 0, 0],       // Mewtwo: 3 Sp. Atk
+};
 
 /** Minimal API shape for a slot when fetch fails. Uses cache (143–146, 150) or generic name/stats so dex always has 151. */
 function getMinimalPokemonFromAPI(id: number, nameFallback: string): PokemonFromAPI {
@@ -337,6 +345,7 @@ function getMinimalPokemonFromAPI(id: number, nameFallback: string): PokemonFrom
   const speciesUrl = `${POKEAPI_BASE}/pokemon-species/${id}/`;
   const types = MINIMAL_TYPES[id] ?? (["normal", undefined] as [string, string?]);
   const statsArr = MINIMAL_STATS[id] ?? [50, 50, 50, 50, 50, 50];
+  const effortArr = MINIMAL_EFFORT[id] ?? [0, 0, 0, 0, 0, 0];
   return {
     id,
     name,
@@ -347,7 +356,7 @@ function getMinimalPokemonFromAPI(id: number, nameFallback: string): PokemonFrom
     types: types.filter(Boolean).map((t, slot) => ({ slot, type: { name: t!, url: "" } })),
     stats: statsArr.map((base_stat, i) => ({
       base_stat,
-      effort: 0,
+      effort: effortArr[i] ?? 0,
       stat: { name: STAT_NAMES_FOR_MINIMAL[i]!, url: "" },
     })),
     sprites: {
