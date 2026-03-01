@@ -45,8 +45,14 @@ const NPC_TRADE_LG_LABEL = "NPC Trade LG";
 export const FOSSIL_IDS = new Set([138, 140, 142]);
 const FOSSIL_LABEL = "Fossil";
 
+/** Can be bought from NPC (e.g. Magikarp at Pokémon Center Route 4). */
+export const BUY_IDS = new Set([129]);
+const BUY_LABEL = "Purchase";
+
 /** Hitmonlee, Hitmonchan: only Gift (Dojo), no Lv. evolution label. */
 export const GIFT_ONLY_IDS = new Set([106, 107]);
+/** Has Gift in addition to Wild (e.g. Lapras: gift in Silph Co. 7F + surf in Icefall Cave). */
+export const GIFT_ALSO_IDS = new Set([131]);
 
 /** Wild but only in LeafGreen – show as "Wild LG" with small LG. */
 export const WILD_LG_ONLY_IDS = new Set([
@@ -78,6 +84,33 @@ export const IN_BOTH_GAMES_OVERRIDE_IDS = new Set<number>();
 
 const WILD_LABEL = "Wild";
 const GIFT_LABEL = "Gift";
+
+/** Display labels for wild methods (table + filter). Grass, Surf, Fishing (rods collapsed). */
+const WILD_METHOD_ORDER = ["Grass", "Surf", "Fishing"] as const;
+const API_METHOD_TO_LABEL: Record<string, (typeof WILD_METHOD_ORDER)[number]> = {
+  walk: "Grass",
+  surf: "Surf",
+  "old-rod": "Fishing",
+  "good-rod": "Fishing",
+  "super-rod": "Fishing",
+};
+
+/** Collect unique wild method labels from encounters (FRLG), ordered: Grass, Surf, Fishing. */
+function getWildMethodLabels(encounters: EncounterEntry[]): string[] {
+  const seen = new Set<string>();
+  for (const area of encounters) {
+    for (const vd of area.version_details ?? []) {
+      const v = vd.version?.name?.toLowerCase();
+      if (v !== "firered" && v !== "leafgreen") continue;
+      for (const ed of vd.encounter_details ?? []) {
+        const method = (ed.method?.name ?? "").toLowerCase();
+        const label = API_METHOD_TO_LABEL[method];
+        if (label) seen.add(label);
+      }
+    }
+  }
+  return WILD_METHOD_ORDER.filter((l) => seen.has(l));
+}
 export const FR_ONLY_LABEL = "FR Only";
 export const LG_ONLY_LABEL = "LG Only";
 const TRADE_EVO_LABEL = "Trade Evo";
@@ -222,27 +255,22 @@ export function buildAvailability(params: BuildAvailabilityParams): string {
   const evo = NO_LEVEL_PREFIX_IDS.has(pokemonId) ? null : evolutionPrefix();
   if (evo) atoms.push(evo);
   if (onlyGift) atoms.push(GIFT_LABEL);
-  else if (WILD_LG_ONLY_IDS.has(pokemonId)) {
-    atoms.push(WILD_LG_LABEL);
-  } else if (WILD_FR_ONLY_IDS.has(pokemonId)) {
-    atoms.push(WILD_FR_LABEL);
-  } else {
-    atoms.push(WILD_LABEL);
+  else {
+    const wildLabels = getWildMethodLabels(encounters);
+    if (wildLabels.length > 0) atoms.push(...wildLabels);
+    else atoms.push(WILD_LABEL);
   }
   if (GAME_CORNER_IDS.has(pokemonId)) atoms.push(GAME_CORNER_LABEL);
+  if (BUY_IDS.has(pokemonId)) atoms.push(BUY_LABEL);
+  if (GIFT_ALSO_IDS.has(pokemonId)) atoms.push(GIFT_LABEL);
   if (NPC_TRADE_FR_IDS.has(pokemonId)) atoms.push(NPC_TRADE_FR_LABEL);
   else if (NPC_TRADE_LG_IDS.has(pokemonId)) atoms.push(NPC_TRADE_LG_LABEL);
   else if (NPC_TRADE_IDS.has(pokemonId)) atoms.push(NPC_TRADE_LABEL);
   if (!IN_BOTH_GAMES_OVERRIDE_IDS.has(pokemonId)) {
-    if (WILD_LG_ONLY_IDS.has(pokemonId)) {
-      // already "Wild LG"
-    } else if (WILD_FR_ONLY_IDS.has(pokemonId)) {
-      // already "Wild FR"
-    } else if (versions.has("firered") && !versions.has("leafgreen")) {
-      atoms.push(FR_ONLY_LABEL);
-    } else if (versions.has("leafgreen") && !versions.has("firered")) {
-      atoms.push(LG_ONLY_LABEL);
-    }
+    if (WILD_LG_ONLY_IDS.has(pokemonId)) atoms.push(LG_ONLY_LABEL);
+    else if (WILD_FR_ONLY_IDS.has(pokemonId)) atoms.push(FR_ONLY_LABEL);
+    else if (versions.has("firered") && !versions.has("leafgreen")) atoms.push(FR_ONLY_LABEL);
+    else if (versions.has("leafgreen") && !versions.has("firered")) atoms.push(LG_ONLY_LABEL);
   }
   return atoms.join(", ");
 }

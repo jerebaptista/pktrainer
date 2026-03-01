@@ -20,6 +20,7 @@ const LOCATION_DISPLAY_NAMES: Record<string, string> = {
 
   "kanto-route-1-area": "Route 1",
   "kanto-route-2-south-towards-viridian-city": "Route 2 Towards Viridian City",
+  "underground-path": "Underground Path",
   "kanto-route-3-area": "Route 3",
   "kanto-route-3-pokemon-center": "Pokémon Center Route 3",
   "kanto-route-4-area": "Route 4",

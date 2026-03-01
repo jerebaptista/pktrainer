@@ -40,15 +40,23 @@ const SELECTABLE_EXTRA_COLUMN_OPTIONS = EXTRA_COLUMN_OPTIONS.filter((o) => o.id 
 /** EV yield filter options (same order as stats). */
 const EV_YIELD_OPTIONS = ["HP", "Atk", "Def", "Sp. Atk", "Sp. Def", "Speed"] as const;
 
-/** Availability filter options: [Obtain], [Exclusives], [Evolutions], [Especial]. */
+/** Availability filter options: [Wild], [Acquisition], [Exclusives], [Evolutions], [Especial]. */
 export const AVAILABILITY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
   {
-    label: "Obtain",
+    label: "Wild",
     options: [
-      { value: "Wild", label: "Wild" },
+      { value: "Grass", label: "Grass" },
+      { value: "Surf", label: "Surf" },
+      { value: "Fishing", label: "Fishing" },
+    ],
+  },
+  {
+    label: "Acquisition",
+    options: [
       { value: "NPC Trade", label: "NPC Trade" },
       { value: "Gift", label: "Gift" },
       { value: "Game Corner", label: "Game Corner" },
+      { value: "Purchase", label: "Purchase" },
       { value: "Fossil", label: "Fossil" },
     ],
   },
@@ -382,55 +390,63 @@ export function PokedexFilters({
         </Popover>
       )}
 
-      {/* Availability filter – always visible as the last filter */}
+      {/* Availability filter – combo-box with badges grouped by title */}
       <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
-              <span className="inline-flex items-center gap-1.5">
-                Availability
-                {availabilityCountLabel != null && (
-                  <>
-                    {" "}
-                    {availabilityCountLabel}
-                  </>
-                )}
-              </span>
-              <ChevronDown className="size-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 border-border p-2" align="start">
-            <div className="flex flex-col gap-2">
-              {availabilityGroups.map((group) => (
-                <div key={group.label}>
-                  <div className="mb-1 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                    {group.label}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    {group.options.map((opt) => (
-                      <label
-                        key={opt.value}
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-muted"
-                      >
-                        <Checkbox
-                          checked={selectedAvailability.includes(opt.value)}
-                          onCheckedChange={() => onToggleAvailability(opt.value)}
-                        />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+            <span className="inline-flex items-center gap-1.5">
+              Availability
+              {availabilityCountLabel != null && (
+                <>
+                  {" "}
+                  {availabilityCountLabel}
+                </>
+              )}
+            </span>
+            <ChevronDown className="size-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto max-w-sm border-border p-2" align="start">
+          <div className="flex flex-col gap-3">
+            {availabilityGroups.map((group) => (
+              <div key={group.label}>
+                <div className="mb-1.5 px-0.5 text-xs font-semibold text-muted-foreground">
+                  {group.label}
                 </div>
-              ))}
-            </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.options.map((opt) => {
+                    const active = selectedAvailability.includes(opt.value);
+                    return (
+                      <Badge
+                        key={opt.value}
+                        variant={active ? "secondary" : "outline"}
+                        className={cn(
+                          "cursor-pointer text-xs font-normal transition-opacity",
+                          !active && "border-transparent opacity-60 hover:opacity-100"
+                        )}
+                        onClick={() => onToggleAvailability(opt.value)}
+                      >
+                        {opt.label}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
             {hasAvailabilityFilter && (
-            <div className="mt-2 flex gap-1 border-t border-border pt-2">
-              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onSelectAllAvailability}>
-                Select all
-              </Button>
-            </div>
-          )}
-          </PopoverContent>
-        </Popover>
+              <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer border-transparent text-xs font-normal opacity-70 hover:opacity-100"
+                  onClick={onSelectAllAvailability}
+                >
+                  Select all
+                </Badge>
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {hasActiveFilters && (
         <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs font-normal" onClick={onRemoveFilters}>

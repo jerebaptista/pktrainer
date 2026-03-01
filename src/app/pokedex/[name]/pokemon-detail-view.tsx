@@ -326,7 +326,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
             )}
           </div>
         </div>
-        {/* Encounters: tags de availability (Wild, NPC Trade, Gift, Game Corner, Fossil, Event, Evolution) */}
+        {/* Availability: obtain methods (Wild, NPC Trade, Gift, Game Corner, Fossil, Event, Evolution) */}
         {(() => {
           const { versionExclusive, blocks } = getEncounterDisplayContent(
             pokemon.id,
@@ -346,7 +346,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
 
           return (
             <div className="mt-3">
-              <span className="text-muted-foreground text-sm font-medium">Encounters</span>
+              <span className="text-muted-foreground text-sm font-medium">Availability</span>
               <div className="mt-1 flex flex-col gap-1">
                 {versionExclusive ? (
                   <span className="text-sm text-muted-foreground">
@@ -364,20 +364,27 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                   blocks.map((block, idx) => {
                     if (block.type === "wild") {
                       return (
-                        <span key={idx} className="text-sm text-foreground">
-                          {block.locations.map((name, i) => (
-                            <span key={name}>
-                              <button
-                                type="button"
-                                className="text-primary hover:opacity-80"
-                                onClick={(e) => e.preventDefault()}
-                              >
-                                {getLocationDisplayName(name)}
-                              </button>
-                              {i < block.locations.length - 1 ? ", " : ""}
+                        <div key={idx} className="flex flex-col gap-1 text-sm text-foreground">
+                          {block.byMethod.map(({ methodLabel, locations: locs }, mi) => (
+                            <span key={mi}>
+                              {methodLabel} in{" "}
+                              {locs.map((slug, i) => (
+                                <span key={slug}>
+                                  <Button
+                                    variant="link"
+                                    className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                    asChild
+                                  >
+                                    <Link href={`/locations/${slug}`}>
+                                      {getLocationDisplayName(slug)}
+                                    </Link>
+                                  </Button>
+                                  {i < locs.length - 1 ? ", " : ""}
+                                </span>
+                              ))}
                             </span>
                           ))}
-                        </span>
+                        </div>
                       );
                     }
                     if (block.type === "gift") {
@@ -403,7 +410,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                                 <Button
                                   key={i}
                                   variant="link"
-                                  className="h-auto p-0 text-foreground no-underline hover:no-underline"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
                                   asChild
                                 >
                                   <Link href={`/locations/${seg.slug}`}>{seg.textInGift}</Link>
@@ -442,7 +449,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                                 <Button
                                   key={i}
                                   variant="link"
-                                  className="h-auto p-0 text-foreground no-underline hover:no-underline"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
                                   asChild
                                 >
                                   <Link href={`/locations/${seg.slug}`}>{seg.textInGift}</Link>
@@ -458,11 +465,181 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                         </span>
                       );
                     }
-                    if (
-                      block.type === "npc-trade" ||
-                      block.type === "fossil" ||
-                      block.type === "event"
-                    ) {
+                    if (block.type === "fossil") {
+                      const fossilLinks = block.links;
+                      if (fossilLinks?.length) {
+                        type Seg = string | { slug: string; textInBlock: string; linkType: "item" | "location" };
+                        let text = block.text;
+                        const segments: Seg[] = [];
+                        for (const link of fossilLinks) {
+                          const i = text.indexOf(link.textInBlock);
+                          if (i === -1) continue;
+                          segments.push(text.slice(0, i));
+                          segments.push(link);
+                          text = text.slice(i + link.textInBlock.length);
+                        }
+                        segments.push(text);
+                        return (
+                          <span key={idx} className="text-sm text-foreground">
+                            {segments.map((seg, i) =>
+                              typeof seg === "string" ? (
+                                seg
+                              ) : (
+                                <Button
+                                  key={i}
+                                  variant="link"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                  asChild
+                                >
+                                  <Link
+                                    href={
+                                      seg.linkType === "item"
+                                        ? `/items/${seg.slug}`
+                                        : `/locations/${seg.slug}`
+                                    }
+                                  >
+                                    {seg.textInBlock}
+                                  </Link>
+                                </Button>
+                              )
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={idx} className="text-sm text-foreground">
+                          {block.text}
+                        </span>
+                      );
+                    }
+                    if (block.type === "buy") {
+                      const locationLinks = block.locationLinks;
+                      if (locationLinks?.length) {
+                        type Seg = string | { slug: string; textInGift: string };
+                        let text = block.text;
+                        const segments: Seg[] = [];
+                        for (const link of locationLinks) {
+                          const i = text.indexOf(link.textInGift);
+                          if (i === -1) continue;
+                          segments.push(text.slice(0, i));
+                          segments.push(link);
+                          text = text.slice(i + link.textInGift.length);
+                        }
+                        segments.push(text);
+                        return (
+                          <span key={idx} className="text-sm text-foreground">
+                            {segments.map((seg, i) =>
+                              typeof seg === "string" ? (
+                                seg
+                              ) : (
+                                <Button
+                                  key={i}
+                                  variant="link"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                  asChild
+                                >
+                                  <Link href={`/locations/${seg.slug}`}>{seg.textInGift}</Link>
+                                </Button>
+                              )
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={idx} className="text-sm text-foreground">
+                          {block.text}
+                        </span>
+                      );
+                    }
+                    if (block.type === "npc-trade") {
+                      const npcLinks = block.links;
+                      if (npcLinks?.length) {
+                        type NpcSeg = string | { slug: string; textInBlock: string; linkType: "pokemon" | "location" };
+                        let text = block.text;
+                        const segments: NpcSeg[] = [];
+                        for (const link of npcLinks) {
+                          const i = text.indexOf(link.textInBlock);
+                          if (i === -1) continue;
+                          segments.push(text.slice(0, i));
+                          segments.push(link);
+                          text = text.slice(i + link.textInBlock.length);
+                        }
+                        segments.push(text);
+                        return (
+                          <span key={idx} className="text-sm text-foreground">
+                            {segments.map((seg, i) =>
+                              typeof seg === "string" ? (
+                                seg
+                              ) : (
+                                <Button
+                                  key={i}
+                                  variant="link"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                  asChild
+                                >
+                                  <Link
+                                    href={
+                                      seg.linkType === "pokemon"
+                                        ? `/pokedex/${seg.slug}`
+                                        : `/locations/${seg.slug}`
+                                    }
+                                  >
+                                    {seg.textInBlock}
+                                  </Link>
+                                </Button>
+                              )
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={idx} className="text-sm text-foreground">
+                          {block.text}
+                        </span>
+                      );
+                    }
+                    if (block.type === "evolution") {
+                      const evolutionLinks = block.links;
+                      if (evolutionLinks?.length) {
+                        type Seg = string | { slug: string; textInBlock: string };
+                        let text = block.text;
+                        const segments: Seg[] = [];
+                        for (const link of evolutionLinks) {
+                          const i = text.indexOf(link.textInBlock);
+                          if (i === -1) continue;
+                          segments.push(text.slice(0, i));
+                          segments.push(link);
+                          text = text.slice(i + link.textInBlock.length);
+                        }
+                        segments.push(text);
+                        return (
+                          <span key={idx} className="text-sm text-foreground">
+                            {segments.map((seg, i) =>
+                              typeof seg === "string" ? (
+                                seg
+                              ) : (
+                                <Button
+                                  key={i}
+                                  variant="link"
+                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                  asChild
+                                >
+                                  <Link href={`/pokedex/${seg.slug}`}>
+                                    {seg.textInBlock}
+                                  </Link>
+                                </Button>
+                              )
+                            )}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span key={idx} className="text-sm text-foreground">
+                          {block.text}
+                        </span>
+                      );
+                    }
+                    if (block.type === "event") {
                       return (
                         <span key={idx} className="text-sm text-foreground">
                           {block.text}
@@ -494,11 +671,11 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
               </div>
               <Tabs defaultValue="level-up">
                 <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-                  <TabsTrigger value="level-up" className="text-xs">Level Up</TabsTrigger>
-                  <TabsTrigger value="tm-hm" className="text-xs">TMs/HMs</TabsTrigger>
-                  <TabsTrigger value="breeding" className="text-xs">Breeding</TabsTrigger>
-                  <TabsTrigger value="tutor" className="text-xs">Tutor</TabsTrigger>
-                  <TabsTrigger value="special" className="text-xs">Special</TabsTrigger>
+                  <TabsTrigger value="level-up">Level Up</TabsTrigger>
+                  <TabsTrigger value="tm-hm">TMs/HMs</TabsTrigger>
+                  <TabsTrigger value="breeding">Breeding</TabsTrigger>
+                  <TabsTrigger value="tutor">Tutor</TabsTrigger>
+                  <TabsTrigger value="special">Special</TabsTrigger>
                 </TabsList>
                 <TabsContent value="level-up" className="mt-2">
                   <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
@@ -539,10 +716,10 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
           <CardContent>
             <Tabs defaultValue="battle-exp">
               <TabsList className="w-full">
-                <TabsTrigger value="battle-exp" className="flex-1 text-xs">
+                <TabsTrigger value="battle-exp" className="flex-1">
                   Battle Exp.
                 </TabsTrigger>
-                <TabsTrigger value="catch-rate" className="flex-1 text-xs">
+                <TabsTrigger value="catch-rate" className="flex-1">
                   Catch Rate
                 </TabsTrigger>
               </TabsList>

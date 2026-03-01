@@ -50,6 +50,7 @@ const AVAILABILITY_ORDER = [
   "Gift, FR Only",
   "Gift, LG Only",
   "Game Corner",
+  "Purchase",
   "Fossil",
   "FR Only",
   "LG Only",
@@ -284,7 +285,6 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
         return selectedAvailability.some((selected) => {
           if (selected === "Level") return parts.some((part) => part.startsWith("Lv."));
           if (selected === "NPC Trade") return parts.some((part) => part === "NPC Trade" || part === "NPC Trade FR" || part === "NPC Trade LG");
-          if (selected === "Wild") return parts.some((part) => part === "Wild" || part === "Wild FR" || part === "Wild LG");
           return parts.includes(selected);
         });
       });
