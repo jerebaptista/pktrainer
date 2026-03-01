@@ -29,6 +29,8 @@ import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STAT_KEYS = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed", "bst"] as const;
+/** Stat columns without total (BST) – used when Max/Min Stats are active; MST column hidden. */
+const STAT_KEYS_NO_TOTAL = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"] as const;
 type StatKey = (typeof STAT_KEYS)[number];
 type SortKey = "id" | "name" | "type" | StatKey | ExtraColumnId;
 type SortDir = "asc" | "desc";
@@ -298,6 +300,11 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   );
 
   const statLabels = useMemo(() => getStatLabels(statsMode), [statsMode]);
+  /** Only show BST column when Base Stats is active; hide MST for Max/Min. */
+  const statColumns = statsMode === "base" ? STAT_KEYS : STAT_KEYS_NO_TOTAL;
+  useEffect(() => {
+    if (statsMode !== "base" && sortKey === "bst") setSortKey("id");
+  }, [statsMode, sortKey]);
   const stats =
     statsMode === "base"
       ? "baseStats"
@@ -459,7 +466,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   <SortIcon column="type" />
                 </button>
               </TableHead>
-              {STAT_KEYS.map((key) => (
+              {statColumns.map((key) => (
                 <TableHead key={key} className={cn(W_NUM, "group whitespace-nowrap")}>
                   {key === "bst" ? (
                     <Tooltip>
@@ -570,7 +577,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                     ))}
                   </div>
                 </TableCell>
-                {STAT_KEYS.map((key) => (
+                {statColumns.map((key) => (
                   <TableCell
                     key={key}
                     className={cn(W_NUM, "font-mono tabular-nums text-muted-foreground")}

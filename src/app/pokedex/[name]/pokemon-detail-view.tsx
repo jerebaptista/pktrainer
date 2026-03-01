@@ -168,8 +168,8 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
       </div>
 
       {/* Col 1–2: Base info (sem Card, só conteúdo) */}
-      <div className="col-span-12 md:col-span-2 space-y-4">
-        <div className="flex flex-col items-center gap-3">
+      <div className="col-span-12 md:col-span-3 space-y-4">
+        <div className="flex w-full max-w-[255px] flex-col items-start gap-3">
           <div className="relative flex min-h-[140px] w-full items-center justify-center rounded-lg bg-muted/50 p-4">
             {currentSpriteUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -185,7 +185,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
             )}
           </div>
           {/* One row: Shiny, Male/Female (when API has sprites), Tab Front/Back, Cry */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-start gap-2">
             {hasGenderSprites ? (
               <ToggleGroup
                 type="multiple"
@@ -693,7 +693,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
       </div>
 
       {/* Col 3–9: Stats & Moves (7 cols) – unified stats bar chart */}
-      <div className="col-span-12 md:col-span-7 space-y-4">
+      <div className="col-span-12 md:col-span-6 space-y-4">
         {(() => {
           const statsData = STAT_KEYS.map((key) => {
             const value =
@@ -729,7 +729,7 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                       </span>
                     )}
                   </div>
-                  <div className="h-[300px] w-full shrink-0">
+                  <div className="h-[255px] w-full shrink-0">
                     <ChartContainer config={chartConfig} className="h-full w-full max-w-full !aspect-auto">
                       <BarChart
                         layout="vertical"
