@@ -19,14 +19,15 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+  Drawer,
+  DrawerContent,
+} from "@/components/ui/drawer";
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
-import type { GlobalMoveRow } from "@/lib/moves-table";
+import type { GlobalMoveRow, MoveLearnIndex } from "@/lib/moves-table";
+import type { PokemonRow } from "@/lib/pokeapi";
+import { MoveDrawerContent } from "./move-drawer-content";
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 const CATEGORY_OPTIONS = ["Physical", "Special", "Status"] as const;
@@ -34,6 +35,8 @@ const AVAILABILITY_OPTIONS = ["Level Up", "TM", "HM", "Breeding", "Tutor", "Spec
 
 type MovesGlobalTableProps = {
   rows: GlobalMoveRow[];
+  learnIndex: MoveLearnIndex;
+  pokemonList: PokemonRow[];
 };
 
 type SortKey = keyof GlobalMoveRow;
@@ -47,13 +50,15 @@ function getSortValue(row: GlobalMoveRow, key: SortKey): string | number | null 
   return String(v);
 }
 
-export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
+export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalTableProps) {
   const [search, setSearch] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("moveName");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedMove, setSelectedMove] = useState<GlobalMoveRow | null>(null);
 
   const allTypes = useMemo(() => [...new Set(rows.map((r) => r.type).filter(Boolean))].sort(), [rows]);
   const allCategories = useMemo(
@@ -176,7 +181,21 @@ export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
     return String(value);
   };
 
+  const getCellClassName = (key: SortKey): string => {
+    if (key === "moveName") return "text-foreground font-semibold";
+    if (key === "power" || key === "accuracy" || key === "pp" || key === "maxPP") {
+      return "font-mono tabular-nums text-muted-foreground";
+    }
+    return "text-muted-foreground";
+  };
+
+  const openMoveDrawer = (row: GlobalMoveRow) => {
+    setSelectedMove(row);
+    setDrawerOpen(true);
+  };
+
   return (
+    <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
@@ -325,7 +344,7 @@ export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
         </Popover>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="overflow-x-auto rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
@@ -360,7 +379,7 @@ export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
               sorted.map((row, i) => (
                 <TableRow key={`${row.moveName}-${i}`}>
                   {columns.map(({ key }) => (
-                    <TableCell key={key} className="px-2 py-1.5 text-sm">
+                    <TableCell key={key} className={cn("px-2 py-1.5 text-sm", getCellClassName(key))}>
                       {key === "type" ? (
                         <Badge
                           variant="secondary"
@@ -372,33 +391,13 @@ export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
                           {row.type || "—"}
                         </Badge>
                       ) : key === "moveName" ? (
-                        row.effect != null || row.flavor != null ? (
-                          <HoverCard openDelay={200} closeDelay={100}>
-                            <HoverCardTrigger asChild>
-                              <span>{formatVal(key, row.moveName, row)}</span>
-                            </HoverCardTrigger>
-                            <HoverCardContent
-                              side="top"
-                              className="max-w-sm border-border p-3"
-                            >
-                              {row.effect != null && (
-                                <p className="text-sm text-foreground">{row.effect}</p>
-                              )}
-                              {row.flavor != null && (
-                                <p
-                                  className={cn(
-                                    "text-xs text-muted-foreground",
-                                    row.effect != null && "mt-2"
-                                  )}
-                                >
-                                  {row.flavor}
-                                </p>
-                              )}
-                            </HoverCardContent>
-                          </HoverCard>
-                        ) : (
-                          formatVal(key, row.moveName, row)
-                        )
+                        <button
+                          type="button"
+                          onClick={() => openMoveDrawer(row)}
+                          className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        >
+                          {formatVal(key, row.moveName, row)}
+                        </button>
                       ) : key === "availability" ? (
                         formatVal(key, row.availability, row)
                       ) : (
@@ -417,5 +416,15 @@ export function MovesGlobalTable({ rows }: MovesGlobalTableProps) {
         </Table>
       </div>
     </div>
+      <DrawerContent className="sm:max-w-md border-border">
+        {selectedMove && (
+          <MoveDrawerContent
+            move={selectedMove}
+            learnIndex={learnIndex}
+            pokemonList={pokemonList}
+          />
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }

@@ -283,10 +283,52 @@ const AVAILABILITY_LABELS: Record<string, string> = {
   special: "Special",
 };
 
-/** Gen 3: base PP + 4 PP Ups (each +20%), cap 64. */
+/** Max PP from API base PP: floor(pp * 1.6), cap 64 (matches common references). */
 function calcMaxPP(pp: number | null): number | null {
   if (pp == null || pp <= 0) return null;
-  return Math.min(64, pp + Math.floor(pp * 0.2) * 4);
+  return Math.min(64, Math.floor(pp * 1.6));
+}
+
+/** Per-move learn data for the move drawer. Keys are API move names (e.g. "mega-kick"). */
+export type MoveLearnIndex = {
+  levelUp: Map<string, Array<{ pokemonId: number; level: number }>>;
+  breeding: Map<string, number[]>;
+  tutor: Map<string, string[]>;
+  machine: Map<string, string[]>;
+};
+
+function buildMoveLearnIndex(
+  movesPerPokemon: RawMove[][],
+  tableData: MovesTableData
+): MoveLearnIndex {
+  const levelUp = new Map<string, Array<{ pokemonId: number; level: number }>>();
+  const breeding = new Map<string, number[]>();
+  for (let i = 0; i < movesPerPokemon.length; i++) {
+    const pokemonId = i + 1;
+    const parsed = parseMovesByMethod(movesPerPokemon[i]);
+    for (const { moveName, level } of parsed["level-up"]) {
+      if (!levelUp.has(moveName)) levelUp.set(moveName, []);
+      levelUp.get(moveName)!.push({ pokemonId, level });
+    }
+    for (const { moveName } of parsed.breeding) {
+      if (!breeding.has(moveName)) breeding.set(moveName, []);
+      breeding.get(moveName)!.push(pokemonId);
+    }
+  }
+  const tutor = new Map<string, string[]>();
+  for (const row of tableData.tutor) {
+    const apiName = row.moveName.replace(/\s/g, "-");
+    const loc = TUTOR_LOCATIONS[apiName];
+    if (loc) tutor.set(apiName, [loc]);
+  }
+  const machine = new Map<string, string[]>();
+  for (const row of tableData["tm-hm"]) {
+    if (row.id) {
+      const apiName = row.moveName.replace(/\s/g, "-");
+      machine.set(apiName, [row.id]);
+    }
+  }
+  return { levelUp, breeding, tutor, machine };
 }
 
 /** Merge MovesTableData into one list: one row per move with availability array. */
@@ -395,8 +437,11 @@ function aggregateKantoMovesByMethod(movesPerPokemon: RawMove[][]): {
   };
 }
 
-/** Fetch all moves in the game (Kanto/FR-LG) by tab: Level Up, TM/HM, Breeding, Tutor, Special. */
-export async function fetchAllGameMovesTableData(): Promise<MovesTableData> {
+/** Fetch all moves in the game (Kanto/FR-LG) and learn index for the move drawer. */
+export async function fetchAllGameMovesTableData(): Promise<{
+  tableData: MovesTableData;
+  learnIndex: MoveLearnIndex;
+}> {
   const BATCH = 25;
   const ids = Array.from({ length: KANTO_DEX_LIMIT }, (_, i) => i + 1);
   const movesPerPokemon: RawMove[][] = [];
@@ -406,7 +451,9 @@ export async function fetchAllGameMovesTableData(): Promise<MovesTableData> {
     movesPerPokemon.push(...results);
   }
   const byMethod = aggregateKantoMovesByMethod(movesPerPokemon);
-  return fetchMovesTableDataFromAggregate(byMethod);
+  const tableData = await fetchMovesTableDataFromAggregate(byMethod);
+  const learnIndex = buildMoveLearnIndex(movesPerPokemon, tableData);
+  return { tableData, learnIndex };
 }
 
 /** Build MovesTableData from pre-aggregated lists (used by fetchAllGameMovesTableData). */

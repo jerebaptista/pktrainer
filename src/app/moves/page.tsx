@@ -1,4 +1,5 @@
 import { fetchAllGameMovesTableData, mergeMovesTableDataToGlobal } from "@/lib/moves-table";
+import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { MovesGlobalTable } from "./moves-global-table";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +10,11 @@ export const metadata = {
 };
 
 export default async function MovesPage() {
-  const movesTableData = await fetchAllGameMovesTableData();
-  const globalRows = mergeMovesTableDataToGlobal(movesTableData);
+  const [{ tableData, learnIndex }, pokemonList] = await Promise.all([
+    fetchAllGameMovesTableData(),
+    fetchKantoPokemon(),
+  ]);
+  const globalRows = mergeMovesTableDataToGlobal(tableData);
 
   return (
     <div className="flex flex-1 flex-col p-6 md:p-8">
@@ -23,7 +27,7 @@ export default async function MovesPage() {
         </p>
       </header>
 
-      <MovesGlobalTable rows={globalRows} />
+      <MovesGlobalTable rows={globalRows} learnIndex={learnIndex} pokemonList={pokemonList} />
     </div>
   );
 }
