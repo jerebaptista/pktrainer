@@ -1,6 +1,9 @@
 import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { PokedexTable } from "./pokedex-table";
 
+/** Always fetch fresh data so missing Pokémon (e.g. 143–146, 150) are filled after retry. */
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Pokémon – PKtrainer",
   description: "Pokédex for Pokémon FireRed & LeafGreen (Kanto).",

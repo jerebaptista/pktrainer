@@ -30,6 +30,8 @@ import {
   getPokemonDisplayName,
 } from "@/lib/api-adjustments";
 import type { PokemonRow } from "@/lib/pokeapi";
+import type { MovesTableData } from "@/lib/moves-table";
+import { MovesTableSection } from "./pokemon-moves-table";
 import { cn, formatApiName } from "@/lib/utils";
 
 /** Stat order for charts: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed */
@@ -57,9 +59,10 @@ function getStatBarColor(value: number, max: number): string {
 type PokemonDetailViewProps = {
   pokemon: PokemonRow;
   allNames: string[];
+  movesTableData: MovesTableData;
 };
 
-export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps) {
+export function PokemonDetailView({ pokemon, allNames, movesTableData }: PokemonDetailViewProps) {
   const router = useRouter();
   const safeNames = allNames ?? [];
   const currentIndex = useMemo(
@@ -754,40 +757,43 @@ export function PokemonDetailView({ pokemon, allNames }: PokemonDetailViewProps)
                 </p>
               </div>
               <div className="mt-8">
-                <Tabs defaultValue="level-up">
-                  <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
-                    <TabsTrigger value="level-up">Level Up</TabsTrigger>
-                  <TabsTrigger value="tm-hm">TMs/HMs</TabsTrigger>
-                  <TabsTrigger value="breeding">Breeding</TabsTrigger>
-                  <TabsTrigger value="tutor">Tutor</TabsTrigger>
-                  <TabsTrigger value="special">Special</TabsTrigger>
-                </TabsList>
-                <TabsContent value="level-up" className="mt-2">
-                  <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
-                    Tabela de moves — em breve
-                  </div>
-                </TabsContent>
-                <TabsContent value="tm-hm" className="mt-2">
-                  <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
-                    TMs/HMs — em breve
-                  </div>
-                </TabsContent>
-                <TabsContent value="breeding" className="mt-2">
-                  <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
-                    Breeding — em breve
-                  </div>
-                </TabsContent>
-                <TabsContent value="tutor" className="mt-2">
-                  <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
-                    Tutor — em breve
-                  </div>
-                </TabsContent>
-                <TabsContent value="special" className="mt-2">
-                  <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
-                    Special — em breve
-                  </div>
-                </TabsContent>
-              </Tabs>
+                {(() => {
+                  const moveTabIds = pokemon.moveTabIds ?? [];
+                  const moveTabLabels: Record<string, string> = {
+                    "level-up": "Level Up",
+                    "tm-hm": "TMs/HMs",
+                    breeding: "Breeding",
+                    tutor: "Tutor",
+                    special: "Special",
+                  };
+                  const defaultMoveTab = moveTabIds[0];
+                  if (moveTabIds.length === 0) {
+                    return (
+                      <div className="min-h-[80px] rounded border border-dashed border-muted-foreground/30 bg-muted/10 flex items-center justify-center text-muted-foreground text-xs">
+                        Nenhum dado de moves para este Pokémon.
+                      </div>
+                    );
+                  }
+                  return (
+                    <Tabs defaultValue={defaultMoveTab}>
+                      <TabsList className="w-fit flex-wrap h-auto gap-1 p-1">
+                        {moveTabIds.map((id) => (
+                          <TabsTrigger key={id} value={id}>
+                            {moveTabLabels[id] ?? id}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                      {moveTabIds.map((id) => (
+                        <TabsContent key={id} value={id} className="mt-2">
+                          <MovesTableSection
+                            tabId={id as "level-up" | "tm-hm" | "breeding" | "tutor" | "special"}
+                            rows={movesTableData[id as keyof MovesTableData] ?? []}
+                          />
+                        </TabsContent>
+                      ))}
+                    </Tabs>
+                  );
+                })()}
               </div>
             </>
           );
