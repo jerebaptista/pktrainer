@@ -159,6 +159,7 @@ const FRLG_ITEM_SLUGS = new Set([
   "pomegberry",
   "qualotberry",
   "rabutaberry",
+  "rarecandy",
   "rawstberry",
   "razzberry",
   "salacberry",

@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import { Search, ChevronDown } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 
@@ -115,6 +116,10 @@ type PokedexFiltersProps = {
   onToggleGrowthRate: (value: string) => void;
   onSelectAllGrowthRates: () => void;
   allGrowthRates: { value: string; label: string }[];
+  /** Height/Weight unit – only shown when height or weight column is visible */
+  heightWeightUnit: "imperial" | "metric";
+  onHeightWeightUnitChange: (v: "imperial" | "metric") => void;
+  showHeightWeightToggle: boolean;
   /** Availability filter – only when Availability column is visible; options grouped by Capture / Evolution / Special */
   selectedAvailability: string[];
   onToggleAvailability: (value: string) => void;
@@ -142,6 +147,9 @@ export function PokedexFilters({
   onToggleGrowthRate,
   onSelectAllGrowthRates,
   allGrowthRates,
+  heightWeightUnit,
+  onHeightWeightUnitChange,
+  showHeightWeightToggle,
   selectedAvailability,
   onToggleAvailability,
   onSelectAllAvailability,
@@ -389,6 +397,21 @@ export function PokedexFilters({
           )}
           </PopoverContent>
         </Popover>
+      )}
+
+      {/* 7. Height/Weight unit – only when height or weight column is visible; shows active label, click to switch */}
+      {showHeightWeightToggle && (
+        <Toggle
+          variant="outline"
+          className="h-9 w-fit min-w-0 px-3 font-normal bg-background hover:bg-background data-[state=on]:bg-background"
+          pressed={true}
+          aria-label={`Unit: ${heightWeightUnit}. Click to switch to ${heightWeightUnit === "imperial" ? "Metric" : "Imperial"}.`}
+          onPressedChange={() =>
+            onHeightWeightUnitChange(heightWeightUnit === "imperial" ? "metric" : "imperial")
+          }
+        >
+          {heightWeightUnit === "imperial" ? "Imperial" : "Metric"}
+        </Toggle>
       )}
 
       {/* Availability filter – combo-box with badges grouped by title */}

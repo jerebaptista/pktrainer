@@ -15,22 +15,30 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarInset,
+  SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ThemeGameCovers } from "@/components/theme-game-covers";
 
-const navPokedex = [
-  { label: "Pokémon", href: "/pokedex" },
-  { label: "Moves", href: "/moves" },
-  { label: "Abilities", href: "/abilities" },
+const ITEM_SPRITES_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items";
+function itemSpriteUrl(slug: string) {
+  return `${ITEM_SPRITES_BASE}/${slug}.png`;
+}
+
+type NavItem = { label: string; href: string; iconSlug: string; iconLocal?: string };
+
+const navPokedex: NavItem[] = [
+  { label: "Pokémon", href: "/pokedex", iconSlug: "poke-ball" },
+  { label: "Moves", href: "/moves", iconSlug: "tm-case" },
+  { label: "Abilities", href: "/abilities", iconSlug: "lucky-egg" },
 ];
 
-const navGuides = [
-  { label: "Walkthrough", href: "/walkthrough" },
-  { label: "Locations", href: "/locations" },
-  { label: "Items", href: "/items" },
-  { label: "About", href: "/about" },
+const navGuides: NavItem[] = [
+  { label: "Walkthrough", href: "/walkthrough", iconSlug: "fame-checker", iconLocal: "/running-shoes.png" },
+  { label: "Locations", href: "/locations", iconSlug: "town-map" },
+  { label: "Items", href: "/items", iconSlug: "potion" },
+  { label: "About", href: "/about", iconSlug: "rare-candy" },
 ];
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
@@ -38,27 +46,38 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar collapsible="icon">
+        <SidebarRail />
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname === "/"}>
-                <Link href="/" className="block w-full">
-                  <Image
-                    src="/logo.png"
-                    alt="PKtrainer"
-                    width={110}
-                    height={24}
-                    className="h-6 w-auto object-contain object-left"
-                    priority
-                  />
+              <SidebarMenuButton asChild isActive={pathname === "/"} tooltip="Home" className="group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!min-w-10">
+                <Link href="/" className="flex items-center gap-2 overflow-hidden">
+                  <span className="flex h-8 shrink-0 items-center justify-center overflow-hidden rounded min-w-0 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:min-w-10">
+                    <Image
+                      src="/logo-pktrainer.png"
+                      alt="PK Trainer"
+                      width={140}
+                      height={24}
+                      className="h-6 w-auto max-w-full object-contain object-left group-data-[collapsible=icon]:hidden"
+                      priority
+                    />
+                    <Image
+                      src="/logo-pk.png"
+                      alt="PK"
+                      width={64}
+                      height={32}
+                      className="hidden h-6 w-8 object-contain group-data-[collapsible=icon]:!block group-data-[collapsible=icon]:!h-9 group-data-[collapsible=icon]:!w-9"
+                      priority
+                    />
+                  </span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          <div className="pb-2 pl-4 pr-4 pt-4">
+          <div className="pb-2 pl-4 pr-4 pt-4 group-data-[collapsible=icon]:px-2">
             <ThemeGameCovers />
           </div>
           <SidebarGroup>
@@ -67,11 +86,19 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
               <SidebarMenu>
                 {navPokedex.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href}
-                    >
-                      <Link href={item.href}>{item.label}</Link>
+                    <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label} className="group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!min-w-10">
+                      <Link href={item.href} className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 min-h-6 min-w-6 shrink-0 items-center justify-center">
+                          <Image
+                            src={item.iconLocal ?? itemSpriteUrl(item.iconSlug)}
+                            alt=""
+                            width={24}
+                            height={24}
+                            className="size-6 object-contain"
+                          />
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -84,11 +111,19 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
               <SidebarMenu>
                 {navGuides.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href}
-                    >
-                      <Link href={item.href}>{item.label}</Link>
+                    <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label} className="group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!min-w-10">
+                      <Link href={item.href} className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 min-h-6 min-w-6 shrink-0 items-center justify-center">
+                          <Image
+                            src={item.iconLocal ?? itemSpriteUrl(item.iconSlug)}
+                            alt=""
+                            width={24}
+                            height={24}
+                            className="size-6 object-contain"
+                          />
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
