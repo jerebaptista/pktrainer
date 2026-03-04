@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   TableBody,
   TableCell,
@@ -28,6 +28,8 @@ import {
 } from "./pokedex-filters";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
+import { SectionTableLayout } from "@/components/section-table-layout";
 
 const STAT_KEYS = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed", "bst"] as const;
 /** Stat columns without total (BST) – used when Max/Min Stats are active; MST column hidden. */
@@ -44,7 +46,7 @@ const MAX_SELECT_FOR_COMPARE = 6;
  */
 const COLUMN_WIDTH_REM: Record<keyof typeof COLUMN_WIDTH_GROUPS, number> = {
   select: 2,
-  sprite: 2.5,
+  sprite: 4,
   id: 3,
   name: 12,
   type: 10,
@@ -84,10 +86,9 @@ for (const key of STICKY_COLUMN_KEYS) {
 function getStickyCellStyle(columnIndex: number): CSSProperties {
   if (columnIndex >= STICKY_LEFT_REM.length) return {};
   const leftRem = STICKY_LEFT_REM[columnIndex];
-  const extraOffset = columnIndex === 2 ? 0.5 : 0;
   return {
     position: "sticky",
-    left: `${leftRem + extraOffset}rem`,
+    left: `${leftRem}rem`,
     zIndex: 10 + columnIndex,
     backgroundColor: "hsl(var(--background))",
     boxShadow:
@@ -349,22 +350,19 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   const filtered = useMemo(() => {
     if (SKIP_FILTERS_DEBUG) return data;
     let list = data;
-    const isStatic = (p: { availability: string }) => p.availability.trim() === "Static";
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((p) => {
-        if (isStatic(p)) return true;
         const paddedId = String(p.id).padStart(3, "0");
         const displayName = getPokemonDisplayName(p.name).toLowerCase();
         return paddedId.includes(q) || p.name.toLowerCase().includes(q) || displayName.includes(q);
       });
     }
     if (selectedTypes.length > 0) {
-      list = list.filter((p) => isStatic(p) || p.types.some((t) => selectedTypes.includes(t)));
+      list = list.filter((p) => p.types.some((t) => selectedTypes.includes(t)));
     }
     if (selectedEvYields.length > 0) {
       list = list.filter((p) => {
-        if (isStatic(p)) return true;
         const y = (p.evYield ?? "").trim();
         if (!y || y === "—") return true;
         const parts = p.evYield.split(", ");
@@ -378,11 +376,10 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
       });
     }
     if (selectedGrowthRates.length > 0) {
-      list = list.filter((p) => isStatic(p) || selectedGrowthRates.includes(p.growthRate));
+      list = list.filter((p) => selectedGrowthRates.includes(p.growthRate));
     }
     if (selectedAvailability.length > 0) {
       list = list.filter((p) => {
-        if (isStatic(p)) return true;
         const parts = p.availability.split(",").map((s) => s.trim());
         return selectedAvailability.some((selected) => {
           if (selected === "Level") return parts.some((part) => part.startsWith("Lv."));
@@ -399,7 +396,6 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     [filtered, sortKey, sortDir, statsMode]
   );
 
-  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const statLabels = useMemo(() => getStatLabels(statsMode), [statsMode]);
   /** Only show BST column when Base Stats is active; hide MST for Max/Min. */
@@ -419,10 +415,10 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     return keys;
   }, [statColumns, effectiveExtraColumns]);
 
-  /** Selected Pokémon in selection order (for compare bar). */
+  /** Selected Pokémon in selection order (for compare bar). Uses data so it doesn't depend on filters. */
   const selectedPokemon = useMemo(
-    () => selectedIds.map((id) => sorted.find((p) => p.id === id)).filter(Boolean) as PokemonRow[],
-    [selectedIds, sorted]
+    () => selectedIds.map((id) => data.find((p) => p.id === id)).filter(Boolean) as PokemonRow[],
+    [selectedIds, data]
   );
 
   const toggleSelect = (id: number) => {
@@ -434,6 +430,15 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   };
 
   const clearSelection = () => setSelectedIds([]);
+
+  const removeAllFilters = () => {
+    setSearch("");
+    setSelectedTypes([...allTypes]);
+    setExtraColumns([]);
+    setSelectedEvYields([...EV_YIELD_OPTIONS]);
+    setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
+    setSelectedAvailability([...ALL_AVAILABILITY_VALUES]);
+  };
 
   const stats =
     statsMode === "base"
@@ -507,8 +512,12 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <PokedexFilters
+    <>
+      <SectionTableLayout
+        title="Pokémon"
+        count={sorted.length}
+        filters={
+          <PokedexFilters
         search={search}
         onSearchChange={setSearch}
         allTypes={allTypes}
@@ -554,24 +563,34 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
         }}
         onSelectAllAvailability={() => setSelectedAvailability([...ALL_AVAILABILITY_VALUES])}
         availabilityGroups={AVAILABILITY_GROUPS}
-        onRemoveFilters={() => {
-          setSearch("");
-          setSelectedTypes([...allTypes]);
-          setExtraColumns([]);
-          setSelectedEvYields([...EV_YIELD_OPTIONS]);
-          setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
-          setSelectedAvailability([...ALL_AVAILABILITY_VALUES]);
-        }}
-      />
-
-      {/* Área da tabela: altura limitada ao viewport (fill); scroll vertical e horizontal só aqui dentro */}
-      <div
-        ref={tableScrollRef}
-        className="min-w-0 h-[calc(100dvh-14rem)] overflow-auto rounded-md border border-border shrink-"
+        onRemoveFilters={removeAllFilters}
+          />
+        }
       >
+        {sorted.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+            <img
+              src="/missing.webp"
+              alt=""
+              className="h-24 w-24 object-contain opacity-80"
+            />
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">
+                No results found
+              </h2>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                No Pokémon match the current filters. Try removing some filters to see more results.
+              </p>
+            </div>
+            <Button variant="outline" className="border-border" onClick={removeAllFilters}>
+              Remove all filters
+            </Button>
+          </div>
+        ) : (
         <table
           style={{
-            width: "max-content",
+            width: "100%",
+            minWidth: "max-content",
             tableLayout: "fixed",
           }}
           className={cn(
@@ -580,7 +599,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
             "[&_thead_th]:[box-shadow:inset_0_-2px_0_0_hsl(var(--border))]",
             "[&_td]:border-b [&_td]:border-border [&_th]:border-b [&_th]:border-border",
             "[&_tbody_tr:last-child_td]:border-b-0",
-            "[&_tbody_tr:hover_td]:!bg-muted/50",
+            "[&_tbody_tr:hover_td]:!bg-muted",
             "[&_th]:px-1 [&_td]:px-1 [&_th]:text-left [&_td]:text-left [&_th]:font-normal [&_td]:text-sm"
           )}
         >
@@ -590,6 +609,8 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               const w = `${rem}rem`;
               return <col key={i} style={{ width: w, minWidth: w }} />;
             })}
+            {/* Coluna vazia que ocupa o espaço restante: linhas da row vão até o fim da área visível */}
+            <col key="spacer" />
           </colgroup>
           <TableHeader>
             <TableRow
@@ -602,7 +623,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               }}
             >
               <TableHead style={{ ...getColumnWidthStyle("select"), ...getStickyCellStyle(0) }} className="shrink-0" />
-              <TableHead style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="shrink-0" />
+              <TableHead style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="shrink-0 !bg-background" />
               <TableHead style={{ ...getColumnWidthStyle("id"), ...getStickyCellStyle(2) }} className="group whitespace-nowrap shrink-0">
                 <button
                   type="button"
@@ -684,6 +705,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   </TableHead>
                 );
               })}
+              <TableHead key="spacer" className="border-b border-border !bg-background" aria-hidden />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -699,11 +721,11 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                       checked={selectedIds.includes(p.id)}
                       onCheckedChange={() => toggleSelect(p.id)}
                       disabled={selectedIds.length >= MAX_SELECT_FOR_COMPARE && !selectedIds.includes(p.id)}
-                      aria-label={`Selecionar ${getPokemonDisplayName(p.name)} para comparar`}
+                      aria-label={`Select ${getPokemonDisplayName(p.name)} for comparison`}
                     />
                   </label>
                 </TableCell>
-                <TableCell style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="py-1 shrink-0 align-middle">
+                <TableCell style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="py-1 shrink-0 align-middle !bg-background">
                   <div className="flex h-full min-h-full items-center justify-center">
                   <button
                     type="button"
@@ -807,28 +829,32 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   </TableCell>
                   );
                 })}
+                <TableCell key="spacer" className="border-b border-border !bg-background py-1" aria-hidden />
               </TableRow>
             ))}
           </TableBody>
         </table>
-      </div>
+        )}
+      </SectionTableLayout>
 
       {/* Barra de seleção para comparar (estilo Sonner, bottom center) */}
       {selectedPokemon.length > 0 && (
         <div
           className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-border bg-popover px-4 py-3 shadow-lg"
           role="status"
-          aria-label="Pokémon selecionados para comparar"
+          aria-label="Pokémon selected for comparison"
         >
           <div className="flex items-center gap-2">
-            {selectedPokemon.map((p) => (
-              <Tooltip key={p.id}>
+            {selectedPokemon.map((p, i) => (
+              <Fragment key={p.id}>
+                {i > 0 && <Separator orientation="vertical" className="h-8 shrink-0" />}
+                <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     onClick={() => toggleSelect(p.id)}
                     className="group relative flex shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={`Remover ${getPokemonDisplayName(p.name)} da seleção`}
+                    aria-label={`Remove ${getPokemonDisplayName(p.name)} from selection`}
                   >
                     <Avatar size="lg" className="size-10 overflow-hidden rounded-full border border-border bg-muted">
                       {p.spriteUrl ? (
@@ -852,23 +878,28 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   {getPokemonDisplayName(p.name)}
                 </TooltipContent>
               </Tooltip>
+              </Fragment>
             ))}
           </div>
-          <div className="flex items-center gap-1 border-l border-border pl-3">
-            <Button size="sm">Compare</Button>
+          <Separator orientation="vertical" className="h-8 shrink-0" />
+          <div className="flex items-center gap-1 pl-1">
+            <Button size="sm" asChild>
+              <Link href={`/pokedex/compare?ids=${selectedIds.join(",")}`}>
+                Compare
+              </Link>
+            </Button>
             <Button
               size="icon"
               variant="ghost"
               className="size-8 shrink-0"
               onClick={clearSelection}
-              aria-label="Cancelar seleção"
+              aria-label="Clear selection"
             >
               <X className="size-4" />
             </Button>
           </div>
         </div>
       )}
-
-          </div>
+    </>
   );
 }

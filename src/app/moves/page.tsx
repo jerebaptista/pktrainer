@@ -2,7 +2,8 @@ import { fetchAllGameMovesTableData, mergeMovesTableDataToGlobal } from "@/lib/m
 import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { MovesGlobalTable } from "./moves-global-table";
 
-export const dynamic = "force-dynamic";
+/** Cache da página por 24h; fetches nos libs usam next: { revalidate }. */
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Moves – PKtrainer",

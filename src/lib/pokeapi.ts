@@ -43,7 +43,7 @@ const KANTO_FALLBACK_NAMES: Record<number, string> = {
 
 async function fetchPokemonByIdOrName(id: number): Promise<PokemonFromAPI | null> {
   const byId = await fetch(`${POKEAPI_BASE}/pokemon/${id}`, {
-    next: { revalidate: 3600 },
+    next: { revalidate: 86400 },
   })
     .then((res) => (res.ok ? res.json() as Promise<PokemonFromAPI> : null))
     .catch(() => null);
@@ -51,7 +51,7 @@ async function fetchPokemonByIdOrName(id: number): Promise<PokemonFromAPI | null
   const name = KANTO_ID_TO_NAME[id];
   if (!name) return byId;
   const byName = await fetch(`${POKEAPI_BASE}/pokemon/${encodeURIComponent(name)}`, {
-    next: { revalidate: 3600 },
+    next: { revalidate: 86400 },
   })
     .then((res) => (res.ok ? res.json() as Promise<PokemonFromAPI> : null))
     .catch(() => null);
@@ -308,7 +308,7 @@ async function fetchKantoNames(): Promise<Map<number, string>> {
 
 async function fetchPokemonByName(name: string): Promise<PokemonFromAPI | null> {
   const res = await fetch(`${POKEAPI_BASE}/pokemon/${encodeURIComponent(name)}`, {
-    next: { revalidate: 3600 },
+    next: { revalidate: 86400 },
   }).catch(() => null);
   if (!res?.ok) return null;
   const p = (await res.json().catch(() => null)) as PokemonFromAPI | null;
@@ -423,7 +423,7 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
   const speciesUrls = list.map((p) => p.species!.url);
   const speciesList = await Promise.all(
     speciesUrls.map((url) =>
-      fetch(url, { next: { revalidate: 3600 } })
+      fetch(url, { next: { revalidate: 86400 } })
         .then((res) => (res.ok ? (res.json() as Promise<SpeciesFromAPI>) : null))
         .catch(() => null)
     )
@@ -432,7 +432,7 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
   const encounterList = await Promise.all(
     ids.map((id) =>
       fetch(`${POKEAPI_BASE}/pokemon/${id}/encounters`, {
-        next: { revalidate: 3600 },
+        next: { revalidate: 86400 },
       })
         .then((res) => (res.ok ? (res.json() as Promise<EncounterEntry[]>) : []))
         .catch(() => [] as EncounterEntry[])
@@ -442,7 +442,7 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
   const chainUrls = [...new Set(speciesList.map((s) => s?.evolution_chain?.url).filter(Boolean))] as string[];
   const chainList = await Promise.all(
     chainUrls.map((url) =>
-      fetch(url, { next: { revalidate: 3600 } }).then(
+      fetch(url, { next: { revalidate: 86400 } }).then(
         (res) => res.json() as Promise<{ chain: EvolutionChainNode }>
       )
     )

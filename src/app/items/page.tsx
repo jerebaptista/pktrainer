@@ -1,7 +1,8 @@
 import { fetchFrLgItems } from "@/lib/items-table";
 import { ItemsTable } from "./items-table";
 
-export const dynamic = "force-dynamic";
+/** Cache da página por 24h; fetches no lib usam next: { revalidate }. */
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Items – PKtrainer",

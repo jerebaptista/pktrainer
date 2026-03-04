@@ -309,7 +309,7 @@ export function MovesTableSection({ tabId, rows }: MovesTableSectionProps) {
             {sorted.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.filter((c) => c.show).length} className="py-8 text-center text-muted-foreground text-sm">
-                  Nenhum move encontrado.
+                  No moves found.
                 </TableCell>
               </TableRow>
             ) : (

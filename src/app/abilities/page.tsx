@@ -2,7 +2,8 @@ import { fetchKantoAbilities } from "@/lib/abilities-table";
 import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { AbilitiesTable } from "./abilities-table";
 
-export const dynamic = "force-dynamic";
+/** Cache da página por 24h; fetches nos libs usam next: { revalidate }. */
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Abilities – PKtrainer",

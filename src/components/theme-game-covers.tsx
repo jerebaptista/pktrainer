@@ -14,10 +14,6 @@ import { cn } from "@/lib/utils";
 const THEME_COLOR_KEY = "pk-trainer-theme-color";
 type ThemeColor = "green" | "red";
 
-const POKEMON_SPRITES_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iii/firered-leafgreen";
-const CHARIZARD_ID = 6;
-const VENUSAUR_ID = 3;
-
 const COVER_FIRERED = "/covers/firered-cover.png";
 const COVER_LEAFGREEN = "/covers/leafgreen-cover.png";
 
@@ -73,6 +69,7 @@ export function ThemeGameCovers({ className }: { className?: string }) {
 
   if (isCollapsed) {
     const themeLabel = themeColor === "red" ? "FireRed" : "LeafGreen";
+    const coverSrc = themeColor === "red" ? COVER_FIRERED : COVER_LEAFGREEN;
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -82,18 +79,18 @@ export function ThemeGameCovers({ className }: { className?: string }) {
             onClick={cycleTheme}
             aria-label={`${themeLabel} (clique para alternar)`}
             className={cn(
-              "h-10 min-w-10 w-full rounded-md border p-1 transition-all",
+              "h-10 min-w-10 w-full rounded-md border overflow-hidden p-0 transition-all",
               themeColor === "red"
                 ? "border-red-500 bg-red-100 hover:bg-red-100 data-[state=on]:bg-red-100"
                 : "border-green-600 bg-green-100 hover:bg-green-100 data-[state=on]:bg-green-100"
             )}
           >
             <Image
-              src={themeColor === "red" ? `${POKEMON_SPRITES_BASE}/${CHARIZARD_ID}.png` : `${POKEMON_SPRITES_BASE}/${VENUSAUR_ID}.png`}
+              src={coverSrc}
               alt=""
-              width={32}
-              height={32}
-              className="size-6 object-contain"
+              width={40}
+              height={40}
+              className="size-10 object-cover object-top"
             />
           </Toggle>
         </TooltipTrigger>
