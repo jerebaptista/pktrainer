@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -12,7 +11,9 @@ import {
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import type { PokemonRow } from "@/lib/pokeapi";
@@ -35,31 +36,64 @@ type StatKey = (typeof STAT_KEYS)[number];
 type SortKey = "id" | "name" | "type" | StatKey | ExtraColumnId;
 type SortDir = "asc" | "desc";
 
+const MAX_SELECT_FOR_COMPARE = 6;
+
 /**
- * Column width as % of table (w, min, max). Edit these to adjust layout.
- * Groups: Sprite | ID | Name | Type | [Stats group] | EV yield | Growth | Availability
- * Stats group = base stats (7) + BST + Base exp, Catch rate, Friendship, Height, Weight (12 cols total).
+ * Largura fixa de cada coluna em rem. Altere os valores aqui para mudar a largura;
+ * são aplicados via style para ter prioridade sobre outras regras.
  */
-const COLUMN_WIDTHS_PCT = {
-  sprite: { w: 2, min: 1, max: 3 },
-  id: { w: 2, min: 1, max: 3 },
-  name: { w: 5, min: 3, max: 8 },
-  type: { w: 5, min: 4, max: 6 },
-  /** Each column in stats group (HP, Attack, Defense, Sp. Atk, Sp. Def, Speed, BST, Base Exp., Catch rate, Friendship, Height, Weight) */
-  statsEach: { w: 3.5, min: 3, max: 4 },
-  evYield: { w: 5, min: 4, max: 6 },
-  growth: { w: 4, min: 4, max: 6 },
-  availability: { w: 8, min: 8, max: 22 },
+const COLUMN_WIDTH_REM: Record<keyof typeof COLUMN_WIDTH_GROUPS, number> = {
+  select: 2,
+  sprite: 2.5,
+  id: 3,
+  name: 12,
+  type: 10,
+  statsEach: 4.5,
+  evYield: 9,
+  growth: 8,
+  availability: 15,
+};
+
+const COLUMN_WIDTH_GROUPS = {
+  select: "select",
+  sprite: "sprite",
+  id: "id",
+  name: "name",
+  type: "type",
+  statsEach: "statsEach",
+  evYield: "evYield",
+  growth: "growth",
+  availability: "availability",
 } as const;
 
-function getColumnWidthStyle(
-  pct: { w: number; min: number; max: number },
-  minRem?: number
-): { width: string; minWidth: string; maxWidth: string } {
+function getColumnWidthStyle(group: keyof typeof COLUMN_WIDTH_GROUPS): { width: string; minWidth: string } {
+  const rem = COLUMN_WIDTH_REM[group];
+  const s = `${rem}rem`;
+  return { width: s, minWidth: s };
+}
+
+/** Colunas fixas no scroll horizontal (sticky). Ordem: select, sprite, id, name. */
+const STICKY_COLUMN_KEYS = ["select", "sprite", "id", "name"] as const;
+const STICKY_LEFT_REM: number[] = [];
+let acc = 0;
+for (const key of STICKY_COLUMN_KEYS) {
+  STICKY_LEFT_REM.push(acc);
+  acc += COLUMN_WIDTH_REM[key];
+}
+
+function getStickyCellStyle(columnIndex: number): CSSProperties {
+  if (columnIndex >= STICKY_LEFT_REM.length) return {};
+  const leftRem = STICKY_LEFT_REM[columnIndex];
+  const extraOffset = columnIndex === 2 ? 0.5 : 0;
   return {
-    width: `${pct.w}%`,
-    minWidth: minRem != null ? `max(${pct.min}%, ${minRem}rem)` : `${pct.min}%`,
-    maxWidth: `${pct.max}%`,
+    position: "sticky",
+    left: `${leftRem + extraOffset}rem`,
+    zIndex: 10 + columnIndex,
+    backgroundColor: "hsl(var(--background))",
+    boxShadow:
+      columnIndex === STICKY_LEFT_REM.length - 1
+        ? "2px 0 4px -2px rgba(0,0,0,0.1)"
+        : "1px 0 0 0 hsl(var(--border))",
   };
 }
 
@@ -295,6 +329,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   const growthRatesInitialized = useRef(false);
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const allGrowthRates = useMemo(() => {
     const raw = [...new Set(data.map((p) => p.growthRate).filter(Boolean))].sort();
@@ -365,9 +400,6 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   );
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const bottomScrollRef = useRef<HTMLDivElement>(null);
-  const [tableScrollWidth, setTableScrollWidth] = useState(0);
-  const [tableContainerWidth, setTableContainerWidth] = useState(0);
 
   const statLabels = useMemo(() => getStatLabels(statsMode), [statsMode]);
   /** Only show BST column when Base Stats is active; hide MST for Max/Min. */
@@ -376,43 +408,32 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     if (statsMode !== "base" && sortKey === "bst") setSortKey("id");
   }, [statsMode, sortKey]);
 
-  /** Medir largura da tabela para a barra de scroll fixa e manter posição sincronizada */
-  useEffect(() => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-    const updateWidth = () => {
-      setTableScrollWidth(el.scrollWidth);
-      setTableContainerWidth(el.clientWidth);
-      const bottom = bottomScrollRef.current;
-      if (bottom) bottom.scrollLeft = el.scrollLeft;
-    };
-    updateWidth();
-    const ro = new ResizeObserver(updateWidth);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [sorted, effectiveExtraColumns, statColumns]);
+  /** Ordem e largura de cada coluna (para <colgroup>); larguras fixas assim não encolhem. */
+  const columnWidthKeys = useMemo((): (keyof typeof COLUMN_WIDTH_GROUPS)[] => {
+    const keys: (keyof typeof COLUMN_WIDTH_GROUPS)[] = ["select", "sprite", "id", "name", "type"];
+    statColumns.forEach(() => keys.push("statsEach"));
+    effectiveExtraColumns.forEach((id) => {
+      const g = EXTRA_COLUMN_GROUP[id];
+      keys.push(g === "stats" ? "statsEach" : g);
+    });
+    return keys;
+  }, [statColumns, effectiveExtraColumns]);
 
-  const syncTableFromBottom = () => {
-    const table = tableScrollRef.current;
-    const bottom = bottomScrollRef.current;
-    if (table && bottom) table.scrollLeft = bottom.scrollLeft;
+  /** Selected Pokémon in selection order (for compare bar). */
+  const selectedPokemon = useMemo(
+    () => selectedIds.map((id) => sorted.find((p) => p.id === id)).filter(Boolean) as PokemonRow[],
+    [selectedIds, sorted]
+  );
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_SELECT_FOR_COMPARE) return prev;
+      return [...prev, id];
+    });
   };
 
-  const syncBottomFromTable = () => {
-    const table = tableScrollRef.current;
-    const bottom = bottomScrollRef.current;
-    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
-  };
-
-  const showBottomScroll = tableScrollWidth > tableContainerWidth;
-
-  /** Ao exibir a barra fixa, sincronizar scroll com a tabela */
-  useEffect(() => {
-    if (!showBottomScroll) return;
-    const table = tableScrollRef.current;
-    const bottom = bottomScrollRef.current;
-    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
-  }, [showBottomScroll]);
+  const clearSelection = () => setSelectedIds([]);
 
   const stats =
     statsMode === "base"
@@ -486,7 +507,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   };
 
   return (
-    <div className={cn("space-y-4", showBottomScroll && "pb-5")}>
+    <div className="flex min-h-0 min-w-0 h-0 flex-1 flex-col gap-4 overflow-hidden">
       <PokedexFilters
         search={search}
         onSearchChange={setSearch}
@@ -543,16 +564,46 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
         }}
       />
 
+      {/* Área da tabela: altura limitada ao viewport (fill); scroll vertical e horizontal só aqui dentro */}
       <div
         ref={tableScrollRef}
-        className="w-full overflow-x-auto"
-        onScroll={syncBottomFromTable}
+        className="min-w-0 h-[calc(100dvh-14rem)] overflow-auto rounded-md border border-border shrink-"
       >
-        <Table className="table-fixed w-full min-w-[72rem] [&_th]:px-1 [&_td]:px-1 [&_th]:text-left [&_td]:text-left [&_th]:font-normal [&_td]:text-sm">
+        <table
+          style={{
+            width: "max-content",
+            tableLayout: "fixed",
+          }}
+          className={cn(
+            "caption-bottom text-sm",
+            "[&_th]:!bg-background [&_td]:!bg-background",
+            "[&_thead_th]:[box-shadow:inset_0_-2px_0_0_hsl(var(--border))]",
+            "[&_td]:border-b [&_td]:border-border [&_th]:border-b [&_th]:border-border",
+            "[&_tbody_tr:last-child_td]:border-b-0",
+            "[&_tbody_tr:hover_td]:!bg-muted/50",
+            "[&_th]:px-1 [&_td]:px-1 [&_th]:text-left [&_td]:text-left [&_th]:font-normal [&_td]:text-sm"
+          )}
+        >
+          <colgroup>
+            {columnWidthKeys.map((key, i) => {
+              const rem = COLUMN_WIDTH_REM[key];
+              const w = `${rem}rem`;
+              return <col key={i} style={{ width: w, minWidth: w }} />;
+            })}
+          </colgroup>
           <TableHeader>
-            <TableRow>
-              <TableHead style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.sprite)} />
-              <TableHead style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.id)} className="group whitespace-nowrap">
+            <TableRow
+              className="!border-b-0"
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 15,
+                backgroundColor: "hsl(var(--background))",
+              }}
+            >
+              <TableHead style={{ ...getColumnWidthStyle("select"), ...getStickyCellStyle(0) }} className="shrink-0" />
+              <TableHead style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="shrink-0" />
+              <TableHead style={{ ...getColumnWidthStyle("id"), ...getStickyCellStyle(2) }} className="group whitespace-nowrap shrink-0">
                 <button
                   type="button"
                   onClick={() => handleSort("id")}
@@ -562,7 +613,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   <SortIcon column="id" />
                 </button>
               </TableHead>
-              <TableHead style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.name)} className="group whitespace-nowrap overflow-hidden">
+              <TableHead style={{ ...getColumnWidthStyle("name"), ...getStickyCellStyle(3) }} className="group whitespace-nowrap overflow-hidden shrink-0">
                 <button
                   type="button"
                   onClick={() => handleSort("name")}
@@ -572,7 +623,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   <SortIcon column="name" />
                 </button>
               </TableHead>
-              <TableHead style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.type, 6)} className="group whitespace-nowrap overflow-hidden">
+              <TableHead style={getColumnWidthStyle("type")} className="group whitespace-nowrap overflow-hidden shrink-0">
                 <button
                   type="button"
                   onClick={() => handleSort("type")}
@@ -583,7 +634,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                 </button>
               </TableHead>
               {statColumns.map((key) => (
-                <TableHead key={key} style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.statsEach)} className="group whitespace-nowrap overflow-hidden">
+                <TableHead key={key} style={getColumnWidthStyle("statsEach")} className="group whitespace-nowrap overflow-hidden shrink-0">
                   {key === "bst" ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -619,10 +670,9 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               {effectiveExtraColumns.map((id) => {
                 const opt = EXTRA_COLUMN_OPTIONS.find((o) => o.id === id);
                 const widthGroup = EXTRA_COLUMN_GROUP[id];
-                const widthPct = widthGroup === "stats" ? COLUMN_WIDTHS_PCT.statsEach : COLUMN_WIDTHS_PCT[widthGroup];
-                const minRem = id === "evYield" ? 9 : undefined;
+                const widthGroupKey = widthGroup === "stats" ? "statsEach" : widthGroup;
                 return (
-                  <TableHead key={id} style={getColumnWidthStyle(widthPct, minRem)} className={cn(id === "availability" && "px-1.5", "group whitespace-nowrap overflow-hidden")}>
+                  <TableHead key={id} style={getColumnWidthStyle(widthGroupKey)} className={cn(id === "availability" && "px-1.5", "group whitespace-nowrap overflow-hidden shrink-0")}>
                     <button
                       type="button"
                       onClick={() => handleSort(id)}
@@ -639,7 +689,22 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
           <TableBody>
             {sorted.map((p) => (
               <TableRow key={p.id}>
-                <TableCell style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.sprite)} className="py-1">
+                <TableCell style={{ ...getColumnWidthStyle("select"), ...getStickyCellStyle(0) }} className="py-1 align-middle shrink-0">
+                  <label
+                    htmlFor={`pokedex-select-${p.id}`}
+                    className="flex min-h-full w-full cursor-pointer items-center justify-center py-2"
+                  >
+                    <Checkbox
+                      id={`pokedex-select-${p.id}`}
+                      checked={selectedIds.includes(p.id)}
+                      onCheckedChange={() => toggleSelect(p.id)}
+                      disabled={selectedIds.length >= MAX_SELECT_FOR_COMPARE && !selectedIds.includes(p.id)}
+                      aria-label={`Selecionar ${getPokemonDisplayName(p.name)} para comparar`}
+                    />
+                  </label>
+                </TableCell>
+                <TableCell style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="py-1 shrink-0 align-middle">
+                  <div className="flex h-full min-h-full items-center justify-center">
                   <button
                     type="button"
                     onClick={() => {
@@ -655,7 +720,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                     )}
                     aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
                   >
-                    <Avatar className="size-8 overflow-hidden rounded-full border border-border bg-muted pointer-events-none">
+                    <Avatar size="lg" className="overflow-hidden rounded-full border border-border bg-muted pointer-events-none">
                       {p.spriteUrl ? (
                         <AvatarImage
                           src={p.spriteUrl}
@@ -669,11 +734,12 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                       )}
                     </Avatar>
                   </button>
+                  </div>
                 </TableCell>
-                <TableCell style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.id)} className="font-mono text-muted-foreground tabular-nums">
+                <TableCell style={{ ...getColumnWidthStyle("id"), ...getStickyCellStyle(2) }} className="font-mono text-muted-foreground tabular-nums shrink-0">
                   #{String(p.id).padStart(3, "0")}
                 </TableCell>
-                <TableCell style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.name)} className="font-medium truncate overflow-hidden">
+                <TableCell style={{ ...getColumnWidthStyle("name"), ...getStickyCellStyle(3) }} className="font-medium truncate overflow-hidden shrink-0">
                   <Link
                     href={`/pokedex/${p.name}`}
                     className="text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
@@ -681,7 +747,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                     {getPokemonDisplayName(p.name)}
                   </Link>
                 </TableCell>
-                <TableCell style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.type, 6)} className="overflow-hidden">
+                <TableCell style={getColumnWidthStyle("type")} className="overflow-hidden shrink-0">
                   <div className="flex flex-nowrap gap-0.5 overflow-hidden">
                     {p.types.map((type) => (
                       <Badge
@@ -697,8 +763,8 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                 {statColumns.map((key) => (
                   <TableCell
                     key={key}
-                    style={getColumnWidthStyle(COLUMN_WIDTHS_PCT.statsEach)}
-                    className="font-mono tabular-nums text-muted-foreground overflow-hidden"
+                    style={getColumnWidthStyle("statsEach")}
+                    className="font-mono tabular-nums text-muted-foreground overflow-hidden shrink-0"
                   >
                     {key === "bst" ? (
                       <span className="font-medium">{p[stats][key]}</span>
@@ -709,15 +775,14 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                 ))}
                 {effectiveExtraColumns.map((id) => {
                   const widthGroup = EXTRA_COLUMN_GROUP[id];
-                  const widthPct = widthGroup === "stats" ? COLUMN_WIDTHS_PCT.statsEach : COLUMN_WIDTHS_PCT[widthGroup];
-                  const minRem = id === "evYield" ? 9 : undefined;
+                  const widthGroupKey = widthGroup === "stats" ? "statsEach" : widthGroup;
                   return (
                   <TableCell
                     key={id}
-                    style={getColumnWidthStyle(widthPct, minRem)}
+                    style={getColumnWidthStyle(widthGroupKey)}
                     className={cn(
                       id === "availability" && "px-1.5",
-                      "overflow-hidden",
+                      "overflow-hidden shrink-0",
                       (id === "evYield" || id === "availability") && "whitespace-nowrap",
                       EXTRA_COLUMN_IS_NUMERIC[id] ? "font-mono tabular-nums text-muted-foreground" : "text-muted-foreground"
                     )}
@@ -745,20 +810,65 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </table>
       </div>
 
-      {/* Barra de scroll horizontal fixa na parte inferior da tela */}
-      {showBottomScroll && (
+      {/* Barra de seleção para comparar (estilo Sonner, bottom center) */}
+      {selectedPokemon.length > 0 && (
         <div
-          ref={bottomScrollRef}
-          className="fixed bottom-0 left-0 right-0 z-50 h-4 overflow-x-auto overflow-y-hidden border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-          onScroll={syncTableFromBottom}
-          aria-label="Scroll horizontal da tabela"
+          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-border bg-popover px-4 py-3 shadow-lg"
+          role="status"
+          aria-label="Pokémon selecionados para comparar"
         >
-          <div style={{ width: tableScrollWidth, height: 1 }} />
+          <div className="flex items-center gap-2">
+            {selectedPokemon.map((p) => (
+              <Tooltip key={p.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => toggleSelect(p.id)}
+                    className="group relative flex shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Remover ${getPokemonDisplayName(p.name)} da seleção`}
+                  >
+                    <Avatar size="lg" className="size-10 overflow-hidden rounded-full border border-border bg-muted">
+                      {p.spriteUrl ? (
+                        <AvatarImage
+                          src={p.spriteUrl}
+                          alt={getPokemonDisplayName(p.name)}
+                          className="size-full object-contain object-center"
+                        />
+                      ) : (
+                        <AvatarFallback className="text-xs">
+                          {getPokemonDisplayName(p.name).slice(0, 2)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                      <X className="size-3" />
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {getPokemonDisplayName(p.name)}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 border-l border-border pl-3">
+            <Button size="sm">Compare</Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 shrink-0"
+              onClick={clearSelection}
+              aria-label="Cancelar seleção"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
       )}
-    </div>
+
+          </div>
   );
 }

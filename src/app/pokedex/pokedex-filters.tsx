@@ -473,7 +473,7 @@ export function PokedexFilters({
       </Popover>
 
       {hasActiveFilters && (
-        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs font-normal" onClick={onRemoveFilters}>
+        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs font-semibold" onClick={onRemoveFilters}>
           Remove filters
         </Button>
       )}

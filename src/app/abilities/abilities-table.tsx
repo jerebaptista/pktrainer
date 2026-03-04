@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -23,6 +22,19 @@ import type { PokemonRow } from "@/lib/pokeapi";
 import { AbilityDrawerContent } from "./ability-drawer-content";
 
 const MAX_VISIBLE_SPRITES = 3;
+
+/** Largura fixa de cada coluna em rem (aplicada via style + colgroup para não encolher). */
+const COLUMN_WIDTH_REM = {
+  sprite: 6,
+  name: 12,
+  effect: 18,
+} as const;
+
+function getColumnWidthStyle(key: keyof typeof COLUMN_WIDTH_REM): { width: string; minWidth: string } {
+  const rem = COLUMN_WIDTH_REM[key];
+  const s = `${rem}rem`;
+  return { width: s, minWidth: s };
+}
 
 type AbilitiesTableProps = {
   rows: AbilityRow[];
@@ -96,10 +108,51 @@ export function AbilitiesTable({ rows, pokemonList }: AbilitiesTableProps) {
     { key: "effect", label: "Effect" },
   ];
 
+  const columnWidthKeys = useMemo(() => ["sprite", "name", "effect"] as const, []);
+
   const getAbilityPokemonIds = (row: AbilityRow): number[] => {
     const ids = new Set([...row.pokemonWithAbility, ...row.pokemonWithHiddenAbility]);
     return Array.from(ids).sort((a, b) => a - b);
   };
+
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => {
+      setTableScrollWidth(el.scrollWidth);
+      setTableContainerWidth(el.clientWidth);
+      const bottom = bottomScrollRef.current;
+      if (bottom) bottom.scrollLeft = el.scrollLeft;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sorted]);
+
+  const syncTableFromBottom = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) table.scrollLeft = bottom.scrollLeft;
+  };
+  const syncBottomFromTable = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  };
+  const showBottomScroll = tableScrollWidth > tableContainerWidth;
+
+  useEffect(() => {
+    if (!showBottomScroll) return;
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  }, [showBottomScroll]);
 
   const renderSpriteCell = (row: AbilityRow) => {
     const ids = getAbilityPokemonIds(row);
@@ -141,18 +194,31 @@ export function AbilitiesTable({ rows, pokemonList }: AbilitiesTableProps) {
         </div>
 
         <Drawer direction="right" open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <div className="overflow-x-auto rounded-md">
-            <Table>
+          <div className={cn("space-y-0", showBottomScroll && "pb-5")}>
+          <div
+            ref={tableScrollRef}
+            className="min-w-0 w-full overflow-x-auto rounded-md"
+            onScroll={syncBottomFromTable}
+          >
+            <table
+              style={{ width: "max-content", minWidth: "max-content", tableLayout: "fixed" }}
+              className="caption-bottom text-sm"
+            >
+              <colgroup>
+                {columnWidthKeys.map((key, i) => {
+                  const rem = COLUMN_WIDTH_REM[key];
+                  const w = `${rem}rem`;
+                  return <col key={i} style={{ width: w, minWidth: w }} />;
+                })}
+              </colgroup>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-32 shrink-0 px-2 py-2" />
+                  <TableHead style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-2" />
                   {columns.map(({ key, label }) => (
                     <TableHead
                       key={key}
-                      className={cn(
-                        "text-foreground font-normal whitespace-nowrap px-2 py-1.5 text-left",
-                        key === "name" && "w-[12rem] min-w-[12rem] shrink-0"
-                      )}
+                      style={getColumnWidthStyle(key)}
+                      className="text-foreground font-normal whitespace-nowrap shrink-0 px-2 py-1.5 text-left"
                     >
                       <button
                         type="button"
@@ -179,10 +245,10 @@ export function AbilitiesTable({ rows, pokemonList }: AbilitiesTableProps) {
                 ) : (
                   sorted.map((row) => (
                     <TableRow key={row.name}>
-                      <TableCell className="w-24 shrink-0 px-2 py-2 align-middle">
+                      <TableCell style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-2 align-middle">
                         {renderSpriteCell(row)}
                       </TableCell>
-                      <TableCell className="w-[12rem] min-w-[12rem] shrink-0 px-2 py-2">
+                      <TableCell style={getColumnWidthStyle("name")} className="shrink-0 px-2 py-2">
                         <button
                           type="button"
                           onClick={() => openDrawer(row)}
@@ -191,14 +257,26 @@ export function AbilitiesTable({ rows, pokemonList }: AbilitiesTableProps) {
                           {formatName(row.name)}
                         </button>
                       </TableCell>
-                      <TableCell className="text-foreground max-w-md px-2 py-2 text-sm">
+                      <TableCell style={getColumnWidthStyle("effect")} className="text-foreground shrink-0 overflow-hidden px-2 py-2 text-sm">
                         {row.effect ?? "—"}
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
-            </Table>
+            </table>
+          </div>
+
+          {showBottomScroll && (
+            <div
+              ref={bottomScrollRef}
+              className="fixed bottom-0 left-0 right-0 z-40 h-5 overflow-x-auto overflow-y-hidden border-t border-border bg-background/95 shadow-[0_-1px_4px_rgba(0,0,0,0.05)] supports-[backdrop-filter]:bg-background/80"
+              onScroll={syncTableFromBottom}
+              aria-label="Scroll horizontal da tabela"
+            >
+              <div style={{ width: tableScrollWidth, height: 1 }} />
+            </div>
+          )}
           </div>
           <DrawerContent className="sm:max-w-md border-border">
             {selectedAbility && (

@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -32,6 +31,25 @@ import type { PokemonRow } from "@/lib/pokeapi";
 import { MoveDrawerContent } from "./move-drawer-content";
 
 const MAX_VISIBLE_SPRITES = 3;
+
+/** Largura fixa de cada coluna em rem (aplicada via style + colgroup para não encolher). */
+const COLUMN_WIDTH_REM: Record<string, number> = {
+  sprite: 6,
+  moveName: 8,
+  type: 5,
+  category: 6,
+  power: 4,
+  accuracy: 4,
+  pp: 3,
+  maxPP: 4,
+  availability: 10,
+};
+
+function getColumnWidthStyle(key: string): { width: string; minWidth: string } {
+  const rem = COLUMN_WIDTH_REM[key] ?? 5;
+  const s = `${rem}rem`;
+  return { width: s, minWidth: s };
+}
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 const CATEGORY_OPTIONS = ["Physical", "Special", "Status"] as const;
@@ -158,6 +176,8 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
     { key: "availability", label: "Availability" },
   ];
 
+  const columnWidthKeys = useMemo(() => ["sprite", ...columns.map((c) => c.key)], [columns]);
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     const isActive = sortKey === column;
     return (
@@ -192,6 +212,45 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
     }
     return "text-muted-foreground";
   };
+
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => {
+      setTableScrollWidth(el.scrollWidth);
+      setTableContainerWidth(el.clientWidth);
+      const bottom = bottomScrollRef.current;
+      if (bottom) bottom.scrollLeft = el.scrollLeft;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sorted]);
+
+  const syncTableFromBottom = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) table.scrollLeft = bottom.scrollLeft;
+  };
+  const syncBottomFromTable = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  };
+  const showBottomScroll = tableScrollWidth > tableContainerWidth;
+
+  useEffect(() => {
+    if (!showBottomScroll) return;
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  }, [showBottomScroll]);
 
   const openMoveDrawer = (row: GlobalMoveRow) => {
     setSelectedMove(row);
@@ -385,15 +444,31 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
         </Popover>
       </div>
 
-      <div className="overflow-x-auto rounded-md">
-        <Table>
+      <div className={cn("space-y-0", showBottomScroll && "pb-5")}>
+      <div
+        ref={tableScrollRef}
+        className="min-w-0 w-full overflow-x-auto rounded-md"
+        onScroll={syncBottomFromTable}
+      >
+        <table
+          style={{ width: "max-content", minWidth: "max-content", tableLayout: "fixed" }}
+          className="caption-bottom text-sm"
+        >
+          <colgroup>
+            {columnWidthKeys.map((key, i) => {
+              const rem = COLUMN_WIDTH_REM[key] ?? 5;
+              const w = `${rem}rem`;
+              return <col key={i} style={{ width: w, minWidth: w }} />;
+            })}
+          </colgroup>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-32 shrink-0 px-2 py-2" />
+              <TableHead style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-2" />
               {columns.map(({ key, label }) => (
                 <TableHead
                   key={key}
-                  className="whitespace-nowrap px-2 py-1.5 text-left font-medium"
+                  style={getColumnWidthStyle(key)}
+                  className="whitespace-nowrap shrink-0 px-2 py-1.5 text-left font-medium"
                 >
                   <button
                     type="button"
@@ -420,11 +495,11 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
             ) : (
               sorted.map((row, i) => (
                 <TableRow key={`${row.moveName}-${i}`}>
-                  <TableCell className="w-12 shrink-0 px-2 py-2 align-middle">
+                  <TableCell style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-2 align-middle">
                     {renderMoveSpriteCell(row)}
                   </TableCell>
                   {columns.map(({ key }) => (
-                    <TableCell key={key} className={cn("px-2 py-2 text-sm", getCellClassName(key))}>
+                    <TableCell key={key} style={getColumnWidthStyle(key)} className={cn("shrink-0 overflow-hidden px-2 py-2 text-sm", getCellClassName(key))}>
                       {key === "type" ? (
                         <Badge
                           variant="secondary"
@@ -458,8 +533,20 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
               ))
             )}
           </TableBody>
-        </Table>
+        </table>
       </div>
+
+      {showBottomScroll && (
+        <div
+          ref={bottomScrollRef}
+          className="fixed bottom-0 left-0 right-0 z-40 h-5 overflow-x-auto overflow-y-hidden border-t border-border bg-background/95 shadow-[0_-1px_4px_rgba(0,0,0,0.05)] supports-[backdrop-filter]:bg-background/80"
+          onScroll={syncTableFromBottom}
+          aria-label="Scroll horizontal da tabela"
+        >
+          <div style={{ width: tableScrollWidth, height: 1 }} />
+        </div>
+      )}
+    </div>
     </div>
       <DrawerContent className="sm:max-w-md border-border">
         {selectedMove && (

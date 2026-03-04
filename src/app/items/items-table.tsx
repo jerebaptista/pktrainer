@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -22,6 +21,20 @@ import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ITEM_TAB_IDS, type ItemRow, type ItemTabId } from "@/lib/items-table";
+
+/** Largura fixa de cada coluna em rem (aplicada via style + colgroup para não encolher). */
+const COLUMN_WIDTH_REM = {
+  sprite: 3,
+  name: 10,
+  category: 7,
+  effect: 16,
+} as const;
+
+function getColumnWidthStyle(key: keyof typeof COLUMN_WIDTH_REM): { width: string; minWidth: string } {
+  const rem = COLUMN_WIDTH_REM[key];
+  const s = `${rem}rem`;
+  return { width: s, minWidth: s };
+}
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 
@@ -114,6 +127,45 @@ export function ItemsTable({ rows }: ItemsTableProps) {
     }
   };
 
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const [tableContainerWidth, setTableContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => {
+      setTableScrollWidth(el.scrollWidth);
+      setTableContainerWidth(el.clientWidth);
+      const bottom = bottomScrollRef.current;
+      if (bottom) bottom.scrollLeft = el.scrollLeft;
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sorted]);
+
+  const syncTableFromBottom = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) table.scrollLeft = bottom.scrollLeft;
+  };
+  const syncBottomFromTable = () => {
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  };
+  const showBottomScroll = tableScrollWidth > tableContainerWidth;
+
+  useEffect(() => {
+    if (!showBottomScroll) return;
+    const table = tableScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    if (table && bottom) bottom.scrollLeft = table.scrollLeft;
+  }, [showBottomScroll]);
+
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
@@ -140,6 +192,8 @@ export function ItemsTable({ rows }: ItemsTableProps) {
     { key: "category", label: "Category" },
     { key: "effect", label: "Effect" },
   ];
+
+  const columnWidthKeys = useMemo(() => ["sprite", "name", "category", "effect"] as const, []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -210,15 +264,31 @@ export function ItemsTable({ rows }: ItemsTableProps) {
             </Popover>
           </div>
 
-          <div className="overflow-x-auto rounded-md">
-        <Table>
+          <div className={cn("space-y-0", showBottomScroll && "pb-5")}>
+          <div
+            ref={tableScrollRef}
+            className="min-w-0 w-full overflow-x-auto rounded-md"
+            onScroll={syncBottomFromTable}
+          >
+        <table
+          style={{ width: "max-content", minWidth: "max-content", tableLayout: "fixed" }}
+          className="caption-bottom text-sm"
+        >
+          <colgroup>
+            {columnWidthKeys.map((key, i) => {
+              const rem = COLUMN_WIDTH_REM[key];
+              const w = `${rem}rem`;
+              return <col key={i} style={{ width: w, minWidth: w }} />;
+            })}
+          </colgroup>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12 shrink-0 px-2 py-1.5" />
+              <TableHead style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-1.5" />
               {columns.map(({ key, label }) => (
                 <TableHead
                   key={key}
-                  className="text-foreground font-normal whitespace-nowrap px-2 py-1.5 text-left"
+                  style={getColumnWidthStyle(key)}
+                  className="text-foreground font-normal whitespace-nowrap shrink-0 px-2 py-1.5 text-left"
                 >
                   <button
                     type="button"
@@ -245,7 +315,7 @@ export function ItemsTable({ rows }: ItemsTableProps) {
             ) : (
               sorted.map((row) => (
                 <TableRow key={row.name}>
-                  <TableCell className="w-12 shrink-0 px-2 py-1.5 align-middle">
+                  <TableCell style={getColumnWidthStyle("sprite")} className="shrink-0 px-2 py-1.5 align-middle">
                     {row.spriteUrl ? (
                       <div className="relative size-8 shrink-0 overflow-hidden rounded border border-border bg-muted">
                         <Image
@@ -259,21 +329,33 @@ export function ItemsTable({ rows }: ItemsTableProps) {
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell className="text-foreground px-2 py-1.5 font-medium">
+                  <TableCell style={getColumnWidthStyle("name")} className="text-foreground shrink-0 overflow-hidden px-2 py-1.5 font-medium">
                     {getItemDisplayName(row)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground px-2 py-1.5 text-sm capitalize">
+                  <TableCell style={getColumnWidthStyle("category")} className="text-muted-foreground shrink-0 overflow-hidden px-2 py-1.5 text-sm capitalize">
                     {getCategoryDisplayName(row.category)}
                   </TableCell>
-                  <TableCell className="text-foreground max-w-md px-2 py-1.5 text-sm">
+                  <TableCell style={getColumnWidthStyle("effect")} className="text-foreground shrink-0 overflow-hidden px-2 py-1.5 text-sm">
                     {row.effect ?? "—"}
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
-        </Table>
+        </table>
           </div>
+
+          {showBottomScroll && (
+            <div
+              ref={bottomScrollRef}
+              className="fixed bottom-0 left-0 right-0 z-40 h-5 overflow-x-auto overflow-y-hidden border-t border-border bg-background/95 shadow-[0_-1px_4px_rgba(0,0,0,0.05)] supports-[backdrop-filter]:bg-background/80"
+              onScroll={syncTableFromBottom}
+              aria-label="Scroll horizontal da tabela"
+            >
+              <div style={{ width: tableScrollWidth, height: 1 }} />
+            </div>
+          )}
+        </div>
         </div>
       </Tabs>
     </div>
