@@ -16,7 +16,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
-import type { PokemonRow } from "@/lib/pokeapi";
+import type { BaseStats, PokemonRow } from "@/lib/pokeapi";
 import type { ExtraColumnId, StatsMode } from "./pokedex-filters";
 import { EXTRA_COLUMN_OPTIONS } from "./pokedex-filters";
 import type { ReactNode } from "react";
@@ -343,9 +343,11 @@ export function PokedexTableView({
                 className="font-mono tabular-nums text-muted-foreground overflow-hidden shrink-0"
               >
                 {key === "bst" ? (
-                  <span className="font-medium">{(p as Record<string, Record<string, number>>)[stats][key]}</span>
+                  <span className="font-medium">
+                    {p[stats][key as keyof BaseStats]}
+                  </span>
                 ) : (
-                  (p as Record<string, Record<string, number>>)[stats][key]
+                  p[stats][key as keyof BaseStats]
                 )}
               </TableCell>
             ))}

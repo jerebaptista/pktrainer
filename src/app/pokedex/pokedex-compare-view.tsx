@@ -20,20 +20,20 @@ export function PokedexCompareView({ selectedPokemon }: PokedexCompareViewProps)
           {i > 0 && i < selectedPokemon.length && (
             <Separator
               orientation="vertical"
-              className="min-h-[60vh] w-px shrink-0 self-stretch bg-border"
+              className="mt-8 min-h-[60vh] w-px shrink-0 self-stretch bg-border"
               decorative
             />
           )}
           <div className="flex min-w-0 flex-1 flex-col overflow-auto">
             {selectedPokemon[i] ? (
               <>
-                <div className="mb-2 shrink-0 text-center">
+                <div className="mb-2 shrink-0 text-left">
                   <span className="font-mono text-muted-foreground text-sm">
-                    #{selectedPokemon[i].id}
+                    #{String(selectedPokemon[i].id).padStart(3, "0")}
                   </span>
-                  <div className="font-semibold">
+                  <span className="ml-2 font-semibold">
                     {getPokemonDisplayName(selectedPokemon[i].name)}
-                  </div>
+                  </span>
                 </div>
                 <PokemonInfoCard pokemon={selectedPokemon[i]} noCard />
               </>

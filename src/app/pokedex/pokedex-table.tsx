@@ -573,7 +573,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
           aria-label="Pokémon selected for comparison"
         >
           <div
-            className="flex items-center gap-2"
+            className="flex items-center gap-1.5"
             onDragLeave={(e) => {
               const related = e.relatedTarget as Node | null;
               if (!related || !e.currentTarget.contains(related)) {

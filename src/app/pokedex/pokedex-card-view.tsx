@@ -181,13 +181,14 @@ export function PokedexCardView({
                             </span>
                           ))}
                         </div>
-                        <p className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                        <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>{formatHeight(p.height, heightWeightUnit)}</span>
                             </TooltipTrigger>
                             <TooltipContent>Height</TooltipContent>
                           </Tooltip>
+                          <span aria-hidden>·</span>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span>{formatWeight(p.weight, heightWeightUnit)}</span>
