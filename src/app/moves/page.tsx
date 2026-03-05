@@ -16,6 +16,12 @@ export default async function MovesPage() {
     fetchKantoPokemon(),
   ]);
   const globalRows = mergeMovesTableDataToGlobal(tableData);
+  /** Minimal payload for client to avoid oversized ISR (only id, name, spriteUrl). */
+  const pokemonListMinimal = pokemonList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    spriteUrl: p.spriteUrl,
+  }));
 
   return (
     <div className="flex flex-1 flex-col p-6 md:p-8">
@@ -28,7 +34,7 @@ export default async function MovesPage() {
         </p>
       </header>
 
-      <MovesGlobalTable rows={globalRows} learnIndex={learnIndex} pokemonList={pokemonList} />
+      <MovesGlobalTable rows={globalRows} learnIndex={learnIndex} pokemonList={pokemonListMinimal} />
     </div>
   );
 }

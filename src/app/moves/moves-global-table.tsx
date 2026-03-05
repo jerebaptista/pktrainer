@@ -27,7 +27,9 @@ import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { GlobalMoveRow, MoveLearnIndex } from "@/lib/moves-table";
-import type { PokemonRow } from "@/lib/pokeapi";
+
+/** Minimal Pokémon data for moves table/drawer to keep RSC payload small. */
+export type PokemonListItem = { id: number; name: string; spriteUrl: string | null };
 import { MoveDrawerContent } from "./move-drawer-content";
 
 const MAX_VISIBLE_SPRITES = 3;
@@ -58,7 +60,7 @@ const AVAILABILITY_OPTIONS = ["Level Up", "TM", "HM", "Breeding", "Tutor", "Spec
 type MovesGlobalTableProps = {
   rows: GlobalMoveRow[];
   learnIndex: MoveLearnIndex;
-  pokemonList: PokemonRow[];
+  pokemonList: PokemonListItem[];
 };
 
 type SortKey = keyof GlobalMoveRow;
@@ -274,7 +276,7 @@ export function MovesGlobalTable({ rows, learnIndex, pokemonList }: MovesGlobalT
     const remaining = ids.length - MAX_VISIBLE_SPRITES;
     const pokemonToShow = toShow
       .map((id) => pokemonList.find((p) => p.id === id))
-      .filter((p): p is PokemonRow => p != null);
+      .filter((p): p is PokemonListItem => p != null);
     if (pokemonToShow.length === 0) return null;
     return (
       <AvatarGroup className="flex shrink-0 flex-wrap justify-start gap-0">

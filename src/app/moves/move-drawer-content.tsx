@@ -17,16 +17,16 @@ import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { GlobalMoveRow, MoveLearnIndex } from "@/lib/moves-table";
-import type { PokemonRow } from "@/lib/pokeapi";
+import type { PokemonListItem } from "./moves-global-table";
 
-type LevelUpRow = PokemonRow & { level: number };
+type LevelUpRow = PokemonListItem & { level: number };
 type LevelUpSortKey = "id" | "name" | "level";
 type BreedingSortKey = "id" | "name";
 
 type MoveDrawerContentProps = {
   move: GlobalMoveRow;
   learnIndex: MoveLearnIndex;
-  pokemonList: PokemonRow[];
+  pokemonList: PokemonListItem[];
 };
 
 function moveNameApi(displayName: string): string {
@@ -48,9 +48,9 @@ export function MoveDrawerContent({ move, learnIndex, pokemonList }: MoveDrawerC
       return p ? { ...p, level } : null;
     })
     .filter((x): x is LevelUpRow => x != null);
-  const breedingFiltered: PokemonRow[] = breedingIds
+  const breedingFiltered: PokemonListItem[] = breedingIds
     .map((id) => pokemonList.find((p) => p.id === id))
-    .filter((x): x is PokemonRow => x != null);
+    .filter((x): x is PokemonListItem => x != null);
 
   const [levelUpSortKey, setLevelUpSortKey] = useState<LevelUpSortKey>("id");
   const [levelUpSortDir, setLevelUpSortDir] = useState<"asc" | "desc">("asc");
