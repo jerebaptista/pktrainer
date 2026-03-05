@@ -3,8 +3,8 @@ import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { fetchMovesTableData } from "@/lib/moves-table";
 import { PokemonDetailView } from "./pokemon-detail-view";
 
-/** Cache por 24h; dados vêm do cache de fetchKantoPokemon e fetchMovesTableData. */
-export const revalidate = 86400;
+/** Evita ISR com payload grande (dados completos do Pokémon + moves). */
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Pokémon – PKtrainer",

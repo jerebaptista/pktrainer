@@ -1,8 +1,8 @@
 import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { PokedexTable } from "./pokedex-table";
 
-/** Cache da página por 24h; fetches internos já usam next: { revalidate } no pokeapi. */
-export const revalidate = 86400;
+/** Evita ISR com payload >19MB (151 Pokémon completos). Página renderizada sob demanda. */
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Pokémon – PKtrainer",

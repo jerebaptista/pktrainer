@@ -4,7 +4,7 @@ import type { PokemonRow } from "@/lib/pokeapi";
 import { fetchMovesTableData, type MovesTableData } from "@/lib/moves-table";
 import { CompareView } from "./compare-view";
 
-export const revalidate = 86400;
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Compare Pokémon – PKtrainer",
