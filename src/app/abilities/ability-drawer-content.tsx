@@ -12,11 +12,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { AbilityRow } from "@/lib/abilities-table";
-import type { PokemonRow } from "@/lib/pokeapi";
+import type { PokemonListItem } from "./abilities-table";
 
 type AbilityDrawerContentProps = {
   ability: AbilityRow;
-  pokemonList: PokemonRow[];
+  pokemonList: PokemonListItem[];
 };
 
 function formatAbilityName(name: string): string {
@@ -27,10 +27,10 @@ export function AbilityDrawerContent({ ability, pokemonList }: AbilityDrawerCont
   const title = formatAbilityName(ability.name);
   const withAbility = ability.pokemonWithAbility
     .map((id) => pokemonList.find((p) => p.id === id))
-    .filter((p): p is PokemonRow => p != null);
+    .filter((p): p is PokemonListItem => p != null);
   const withHidden = ability.pokemonWithHiddenAbility
     .map((id) => pokemonList.find((p) => p.id === id))
-    .filter((p): p is PokemonRow => p != null);
+    .filter((p): p is PokemonListItem => p != null);
 
   return (
     <div className="flex flex-col gap-6 overflow-y-auto p-4">

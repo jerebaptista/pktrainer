@@ -18,8 +18,10 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { AbilityRow } from "@/lib/abilities-table";
-import type { PokemonRow } from "@/lib/pokeapi";
 import { AbilityDrawerContent } from "./ability-drawer-content";
+
+/** Minimal Pokémon data for abilities table/drawer to keep RSC payload small. */
+export type PokemonListItem = { id: number; name: string; spriteUrl: string | null };
 
 const MAX_VISIBLE_SPRITES = 3;
 
@@ -38,7 +40,7 @@ function getColumnWidthStyle(key: keyof typeof COLUMN_WIDTH_REM): { width: strin
 
 type AbilitiesTableProps = {
   rows: AbilityRow[];
-  pokemonList: PokemonRow[];
+  pokemonList: PokemonListItem[];
 };
 
 type SortKey = "name" | "effect";
@@ -160,7 +162,7 @@ export function AbilitiesTable({ rows, pokemonList }: AbilitiesTableProps) {
     const remaining = ids.length - MAX_VISIBLE_SPRITES;
     const pokemonToShow = toShow
       .map((id) => pokemonList.find((p) => p.id === id))
-      .filter((p): p is PokemonRow => p != null);
+      .filter((p): p is PokemonListItem => p != null);
     if (pokemonToShow.length === 0) return null;
     return (
       <AvatarGroup className="flex shrink-0 flex-wrap justify-start gap-0">

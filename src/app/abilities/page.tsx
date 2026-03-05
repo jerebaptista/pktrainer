@@ -13,6 +13,12 @@ export const metadata = {
 export default async function AbilitiesPage() {
   const pokemonList = await fetchKantoPokemon();
   const rows = await fetchKantoAbilities(pokemonList);
+  /** Minimal payload for client to avoid oversized ISR (only id, name, spriteUrl). */
+  const pokemonListMinimal = pokemonList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    spriteUrl: p.spriteUrl,
+  }));
 
   return (
     <div className="flex flex-1 flex-col p-6 md:p-8">
@@ -25,7 +31,7 @@ export default async function AbilitiesPage() {
         </p>
       </header>
 
-      <AbilitiesTable rows={rows} pokemonList={pokemonList} />
+      <AbilitiesTable rows={rows} pokemonList={pokemonListMinimal} />
     </div>
   );
 }
