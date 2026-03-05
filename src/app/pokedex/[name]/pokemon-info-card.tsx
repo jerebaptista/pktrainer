@@ -670,7 +670,7 @@ export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonIn
   }
   return (
     <Card className="w-full">
-      <CardContent className="space-y-4 pt-6">{content}</CardContent>
+      <CardContent className="space-y-4">{content}</CardContent>
     </Card>
   );
 }

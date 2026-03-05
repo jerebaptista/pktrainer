@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, LayoutGrid, Sparkles, Table } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 
@@ -95,7 +97,14 @@ export const ALL_AVAILABILITY_VALUES = AVAILABILITY_GROUPS.flatMap((g) => g.opti
 export type ExtraColumnId = (typeof EXTRA_COLUMN_OPTIONS)[number]["id"];
 export type StatsMode = "base" | "max" | "min";
 
+export type PokedexViewMode = "card" | "table";
+
 type PokedexFiltersProps = {
+  viewMode: PokedexViewMode;
+  onViewModeChange: (v: PokedexViewMode) => void;
+  /** Card view only: show shiny sprites when true */
+  cardViewShiny?: boolean;
+  onCardViewShinyChange?: (v: boolean) => void;
   search: string;
   onSearchChange: (v: string) => void;
   allTypes: string[];
@@ -129,6 +138,10 @@ type PokedexFiltersProps = {
 };
 
 export function PokedexFilters({
+  viewMode,
+  onViewModeChange,
+  cardViewShiny = false,
+  onCardViewShinyChange,
   search,
   onSearchChange,
   allTypes,
@@ -166,14 +179,14 @@ export function PokedexFilters({
     hasColumnsActive ? (
       <span className="text-xs font-semibold text-primary">{extraColumns.length}</span>
     ) : null;
-  const showEvYieldFilter = extraColumns.includes("evYield");
+  const showEvYieldFilter = extraColumns.includes("evYield") || viewMode === "card";
   const hasEvYieldFilter =
     selectedEvYields.length > 0 && selectedEvYields.length < EV_YIELD_OPTIONS.length;
   const evYieldCountLabel =
     hasEvYieldFilter ? (
       <span className="text-xs font-semibold text-primary">{selectedEvYields.length}</span>
     ) : null;
-  const showGrowthRateFilter = extraColumns.includes("growthRate");
+  const showGrowthRateFilter = extraColumns.includes("growthRate") || viewMode === "card";
   const hasGrowthRateFilter =
     showGrowthRateFilter &&
     selectedGrowthRates.length > 0 &&
@@ -198,6 +211,62 @@ export function PokedexFilters({
     selectedAvailability.length < allAvailabilityValues.length;
   return (
     <div className="flex flex-wrap items-center gap-3">
+      {/* 0. Card / Table view toggle – Tooltip dentro do item para não quebrar o data-state do Radix */}
+      <ToggleGroup
+        type="single"
+        value={viewMode}
+        onValueChange={(v) => v && onViewModeChange(v as PokedexViewMode)}
+        variant="outline"
+        className="shadow-xs"
+      >
+        <ToggleGroupItem
+          value="card"
+          aria-label="Card view"
+          className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex size-full items-center justify-center">
+                <LayoutGrid className="size-4" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Card view</TooltipContent>
+          </Tooltip>
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="table"
+          aria-label="Table view"
+          className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex size-full items-center justify-center">
+                <Table className="size-4" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Table view</TooltipContent>
+          </Tooltip>
+        </ToggleGroupItem>
+      </ToggleGroup>
+
+      {viewMode === "card" && onCardViewShinyChange != null && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Toggle
+              variant="outline"
+              size="default"
+              pressed={cardViewShiny}
+              onPressedChange={onCardViewShinyChange}
+              aria-label="Shiny"
+              className={cn(cardViewShiny && "!bg-muted !text-foreground")}
+            >
+              <Sparkles className="size-4" />
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent>Shiny</TooltipContent>
+        </Tooltip>
+      )}
+
       {/* 1. Search */}
       <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
         <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -272,46 +341,48 @@ export function PokedexFilters({
         </SelectContent>
       </Select>
 
-      {/* 4. Columns: all start unchecked; count when any selected; Remove all when any selected */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
-            <span className="inline-flex items-center gap-1.5">
-              Columns
-              {columnsCountLabel != null && (
-                <>
-                  {" "}
-                  {columnsCountLabel}
-                </>
-              )}
-            </span>
-            <ChevronDown className="size-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-56 border-border p-2" align="start">
-          <div className="flex flex-col gap-1">
-            {SELECTABLE_EXTRA_COLUMN_OPTIONS.map((opt) => (
-              <label
-                key={opt.id}
-                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-accent"
-              >
-                <Checkbox
-                  checked={extraColumns.includes(opt.id)}
-                  onCheckedChange={() => onToggleExtraColumn(opt.id)}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          {hasColumnsActive && (
-            <div className="mt-2 flex gap-1 border-t border-border pt-2">
-              <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onRemoveAllColumns}>
-                Remove all
-              </Button>
+      {/* 4. Columns – hidden in Card view (all columns considered active) */}
+      {viewMode === "table" && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                Columns
+                {columnsCountLabel != null && (
+                  <>
+                    {" "}
+                    {columnsCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 border-border p-2" align="start">
+            <div className="flex flex-col gap-1">
+              {SELECTABLE_EXTRA_COLUMN_OPTIONS.map((opt) => (
+                <label
+                  key={opt.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-normal hover:bg-accent"
+                >
+                  <Checkbox
+                    checked={extraColumns.includes(opt.id)}
+                    onCheckedChange={() => onToggleExtraColumn(opt.id)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
             </div>
-          )}
-        </PopoverContent>
-      </Popover>
+            {hasColumnsActive && (
+              <div className="mt-2 flex gap-1 border-t border-border pt-2">
+                <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs font-normal" onClick={onRemoveAllColumns}>
+                  Remove all
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* 5. EV yield filter – only when EV yield column is visible */}
       {showEvYieldFilter && (
@@ -403,7 +474,7 @@ export function PokedexFilters({
       {showHeightWeightToggle && (
         <Toggle
           variant="outline"
-          className="h-9 w-fit min-w-0 px-3 font-normal bg-background hover:bg-background data-[state=on]:bg-background"
+          className="h-9 w-fit min-w-0 px-3 font-normal !border-border bg-background dark:bg-input/30 shadow-xs hover:bg-accent dark:hover:bg-input/50 data-[state=on]:!bg-background dark:data-[state=on]:!bg-input/30 data-[state=on]:!text-foreground"
           pressed={true}
           aria-label={`Unit: ${heightWeightUnit}. Click to switch to ${heightWeightUnit === "imperial" ? "Metric" : "Imperial"}.`}
           onPressedChange={() =>
