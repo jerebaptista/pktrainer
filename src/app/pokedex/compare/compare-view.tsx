@@ -95,7 +95,7 @@ export function CompareView({ pokemonList, movesDataList }: CompareViewProps) {
           <Fragment key={pokemon.id}>
             {index > 0 && <Separator orientation="vertical" className="shrink-0 mx-1" />}
             <div className="flex-1 min-w-0 flex flex-col gap-3 py-2 px-2">
-              <PokemonInfoCard pokemon={pokemon} theme={theme} />
+              <PokemonInfoCard pokemon={pokemon} theme={theme} noCard />
             </div>
           </Fragment>
         ))}

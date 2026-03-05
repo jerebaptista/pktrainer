@@ -12,6 +12,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import {
   getEncounterDisplayContent,
@@ -19,14 +25,17 @@ import {
   getPokemonDisplayName,
 } from "@/lib/api-adjustments";
 import type { PokemonRow } from "@/lib/pokeapi";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatApiName } from "@/lib/utils";
 
 type PokemonInfoCardProps = {
   pokemon: PokemonRow;
   theme?: "red" | "green";
+  /** When true, render without Card wrapper (e.g. for compare view with separators). */
+  noCard?: boolean;
 };
 
-export function PokemonInfoCard({ pokemon, theme: themeProp }: PokemonInfoCardProps) {
+export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonInfoCardProps) {
   const [spriteFront, setSpriteFront] = useState(true);
   const [shiny, setShiny] = useState(false);
   const [female, setFemale] = useState(false);
@@ -81,9 +90,9 @@ export function PokemonInfoCard({ pokemon, theme: themeProp }: PokemonInfoCardPr
     return spriteUrlBack ?? spriteUrl;
   })();
 
-  return (
-    <div className="space-y-4">
-      <div className="flex w-full max-w-[255px] flex-col items-start gap-3">
+  const content = (
+    <>
+      <div className="flex w-full flex-col items-start gap-3">
         <div className="relative flex min-h-[140px] w-full items-center justify-center rounded-lg bg-muted/50 p-4">
           {currentSpriteUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -260,10 +269,10 @@ export function PokemonInfoCard({ pokemon, theme: themeProp }: PokemonInfoCardPr
                 <Button
                   type="button"
                   variant="link"
-                  className="h-auto py-0 px-1.5 text-primary font-normal hover:opacity-80 align-baseline"
+                  className="h-auto py-0 px-0 text-primary font-normal hover:opacity-80 align-baseline"
                   onClick={(e) => e.preventDefault()}
                 >
-                  {formatApiName(a.name)}
+                  {formatApiName(a.name.trim())}
                   {a.isHidden ? " (Hidden)" : ""}
                 </Button>
                 {i < pokemon.abilities.length - 1 ? ", " : ""}
@@ -312,27 +321,36 @@ export function PokemonInfoCard({ pokemon, theme: themeProp }: PokemonInfoCardPr
                 blocks.map((block, idx) => {
                   if (block.type === "wild") {
                     return (
-                      <div key={idx} className="flex flex-col gap-1 text-sm text-foreground">
+                      <Accordion
+                        key={idx}
+                        type="multiple"
+                        className="text-sm text-foreground"
+                      >
                         {block.byMethod.map(({ methodLabel, locations: locs }, mi) => (
-                          <span key={mi}>
-                            {methodLabel} in{" "}
-                            {locs.map((slug, i) => (
-                              <span key={slug}>
-                                <Button
-                                  variant="link"
-                                  className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
-                                  asChild
-                                >
-                                  <Link href={`/locations/${slug}`}>
-                                    {getLocationDisplayName(slug)}
-                                  </Link>
-                                </Button>
-                                {i < locs.length - 1 ? ", " : ""}
-                              </span>
-                            ))}
-                          </span>
+                          <AccordionItem key={mi} value={methodLabel} className="border-border">
+                            <AccordionTrigger className="py-2 text-left font-normal hover:no-underline">
+                              {methodLabel}
+                            </AccordionTrigger>
+                            <AccordionContent className="pb-2 pt-0">
+                              <span className="text-muted-foreground">in </span>
+                              {locs.map((slug, i) => (
+                                <span key={slug}>
+                                  <Button
+                                    variant="link"
+                                    className="h-auto p-0 font-normal text-primary no-underline hover:no-underline"
+                                    asChild
+                                  >
+                                    <Link href={`/locations/${slug}`}>
+                                      {getLocationDisplayName(slug)}
+                                    </Link>
+                                  </Button>
+                                  {i < locs.length - 1 ? ", " : ""}
+                                </span>
+                              ))}
+                            </AccordionContent>
+                          </AccordionItem>
                         ))}
-                      </div>
+                      </Accordion>
                     );
                   }
                   if (block.type === "static") {
@@ -644,6 +662,15 @@ export function PokemonInfoCard({ pokemon, theme: themeProp }: PokemonInfoCardPr
           </div>
         );
       })()}
-    </div>
+    </>
+  );
+
+  if (noCard) {
+    return <div className="space-y-4 w-full min-w-0">{content}</div>;
+  }
+  return (
+    <Card className="w-full">
+      <CardContent className="space-y-4 pt-6">{content}</CardContent>
+    </Card>
   );
 }

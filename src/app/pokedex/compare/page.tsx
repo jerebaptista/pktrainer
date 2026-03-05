@@ -36,7 +36,7 @@ export default async function ComparePage({
   const serialized = pokemonList.map((p) => JSON.parse(JSON.stringify(p)) as PokemonRow);
 
   return (
-    <div className="flex flex-1 flex-col p-6 md:p-8">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 md:p-8">
       <CompareView pokemonList={serialized} movesDataList={movesDataList} />
     </div>
   );

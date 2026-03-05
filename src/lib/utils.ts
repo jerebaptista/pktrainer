@@ -10,9 +10,11 @@ export function cn(...inputs: ClassValue[]) {
  * Ex: "overgrow" → "Overgrow", "cerulean-city-area" → "Cerulean City Area".
  */
 export function formatApiName(value: string): string {
-  if (!value.trim()) return value;
-  return value
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  return trimmed
     .split(/[\s-]+/)
+    .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
 }

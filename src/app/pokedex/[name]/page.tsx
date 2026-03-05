@@ -28,7 +28,7 @@ export default async function PokemonDetailPage({
   const movesTableData = await fetchMovesTableData(serialized.moves);
 
   return (
-    <div className="flex flex-1 flex-col p-6 md:p-8">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 md:p-8">
       <PokemonDetailView
         key={pokemon.name}
         pokemon={serialized}
