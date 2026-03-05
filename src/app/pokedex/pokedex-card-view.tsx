@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
-import type { PokemonRow } from "@/lib/pokeapi";
+import type { BaseStats, PokemonRow } from "@/lib/pokeapi";
 import { cn } from "@/lib/utils";
 import Tilt from "react-parallax-tilt";
 import type { StatsMode } from "./pokedex-filters";
@@ -223,7 +223,9 @@ export function PokedexCardView({
                               {statColumns.map((key) => (
                                 <span key={key} className="flex justify-between font-mono">
                                   <span className="text-muted-foreground">{statLabels[key]}</span>
-                                  <span>{statsSource[key] ?? "—"}</span>
+                                  <span>
+                                    {statsSource[key as keyof BaseStats] ?? "—"}
+                                  </span>
                                 </span>
                               ))}
                               <div className="my-1.5 border-t border-border" role="separator" />
