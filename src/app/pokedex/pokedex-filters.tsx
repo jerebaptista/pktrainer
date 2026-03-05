@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
-import { Search, ChevronDown, LayoutGrid, Sparkles, Table } from "lucide-react";
+import { Columns2, Search, ChevronDown, LayoutGrid, Sparkles, Table } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -97,7 +97,7 @@ export const ALL_AVAILABILITY_VALUES = AVAILABILITY_GROUPS.flatMap((g) => g.opti
 export type ExtraColumnId = (typeof EXTRA_COLUMN_OPTIONS)[number]["id"];
 export type StatsMode = "base" | "max" | "min";
 
-export type PokedexViewMode = "card" | "table";
+export type PokedexViewMode = "compare" | "card" | "table";
 
 type PokedexFiltersProps = {
   viewMode: PokedexViewMode;
@@ -211,7 +211,7 @@ export function PokedexFilters({
     selectedAvailability.length < allAvailabilityValues.length;
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* 0. Card / Table view toggle – Tooltip dentro do item para não quebrar o data-state do Radix */}
+      {/* 0. Card / Table / Compare view toggle */}
       <ToggleGroup
         type="single"
         value={viewMode}
@@ -247,6 +247,20 @@ export function PokedexFilters({
             <TooltipContent>Table view</TooltipContent>
           </Tooltip>
         </ToggleGroupItem>
+        <ToggleGroupItem
+          value="compare"
+          aria-label="Compare view"
+          className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex size-full items-center justify-center">
+                <Columns2 className="size-4" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Compare view</TooltipContent>
+          </Tooltip>
+        </ToggleGroupItem>
       </ToggleGroup>
 
       {viewMode === "card" && onCardViewShinyChange != null && (
@@ -278,53 +292,55 @@ export function PokedexFilters({
         />
       </div>
 
-      {/* 2. Types: count only when 1–16 selected; "Select all" only when filter active */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
-            <span className="inline-flex items-center gap-1.5">
-              Types
-              {typeCountLabel != null && (
-                <>
-                  {" "}
-                  {typeCountLabel}
-                </>
-              )}
-            </span>
-            <ChevronDown className="size-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto max-w-sm border-border p-2" align="start">
-          <div className="flex max-h-[280px] flex-wrap gap-1 overflow-y-auto">
-            {allTypes.map((type) => {
-              const active = selectedTypes.includes(type);
-              return (
+      {/* 2. Types – hidden in Compare view */}
+      {viewMode !== "compare" && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                Types
+                {typeCountLabel != null && (
+                  <>
+                    {" "}
+                    {typeCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto max-w-sm border-border p-2" align="start">
+            <div className="flex max-h-[280px] flex-wrap gap-1 overflow-y-auto">
+              {allTypes.map((type) => {
+                const active = selectedTypes.includes(type);
+                return (
+                  <Badge
+                    key={type}
+                    variant="outline"
+                    className={cn(
+                      "cursor-pointer capitalize border text-xs transition-opacity",
+                      getTypeBadgeClassName(type),
+                      !active && "opacity-30"
+                    )}
+                    onClick={() => onToggleType(type)}
+                  >
+                    {type}
+                  </Badge>
+                );
+              })}
+              {hasTypeFilter && (
                 <Badge
-                  key={type}
                   variant="outline"
-                  className={cn(
-                    "cursor-pointer capitalize border text-xs transition-opacity",
-                    getTypeBadgeClassName(type),
-                    !active && "opacity-30"
-                  )}
-                  onClick={() => onToggleType(type)}
+                  className="cursor-pointer border-border text-xs font-normal"
+                  onClick={onSelectAllTypes}
                 >
-                  {type}
+                  Select all
                 </Badge>
-              );
-            })}
-            {hasTypeFilter && (
-              <Badge
-                variant="outline"
-                className="cursor-pointer border-border text-xs font-normal"
-                onClick={onSelectAllTypes}
-              >
-                Select all
-              </Badge>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
 
       {/* 3. Stats mode */}
       <Select
@@ -485,63 +501,65 @@ export function PokedexFilters({
         </Toggle>
       )}
 
-      {/* Availability filter – combo-box with badges grouped by title */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
-            <span className="inline-flex items-center gap-1.5">
-              Availability
-              {availabilityCountLabel != null && (
-                <>
-                  {" "}
-                  {availabilityCountLabel}
-                </>
+      {/* Availability filter – hidden in Compare view */}
+      {viewMode !== "compare" && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn(FILTER_BUTTON_WIDTH, "justify-between !border-border font-normal")}>
+              <span className="inline-flex items-center gap-1.5">
+                Availability
+                {availabilityCountLabel != null && (
+                  <>
+                    {" "}
+                    {availabilityCountLabel}
+                  </>
+                )}
+              </span>
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto max-w-sm border-border p-2" align="start">
+            <div className="flex flex-col gap-3">
+              {availabilityGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="mb-1.5 px-0.5 text-xs font-semibold text-muted-foreground">
+                    {group.label}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.options.map((opt) => {
+                      const active = selectedAvailability.includes(opt.value);
+                      return (
+                        <Badge
+                          key={opt.value}
+                          variant={active ? "secondary" : "outline"}
+                          className={cn(
+                            "cursor-pointer text-xs font-normal transition-opacity",
+                            !active && "border-transparent opacity-60 hover:opacity-100"
+                          )}
+                          onClick={() => onToggleAvailability(opt.value)}
+                        >
+                          {opt.label}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {hasAvailabilityFilter && (
+                <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer border-transparent text-xs font-normal opacity-70 hover:opacity-100"
+                    onClick={onSelectAllAvailability}
+                  >
+                    Select all
+                  </Badge>
+                </div>
               )}
-            </span>
-            <ChevronDown className="size-4 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto max-w-sm border-border p-2" align="start">
-          <div className="flex flex-col gap-3">
-            {availabilityGroups.map((group) => (
-              <div key={group.label}>
-                <div className="mb-1.5 px-0.5 text-xs font-semibold text-muted-foreground">
-                  {group.label}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {group.options.map((opt) => {
-                    const active = selectedAvailability.includes(opt.value);
-                    return (
-                      <Badge
-                        key={opt.value}
-                        variant={active ? "secondary" : "outline"}
-                        className={cn(
-                          "cursor-pointer text-xs font-normal transition-opacity",
-                          !active && "border-transparent opacity-60 hover:opacity-100"
-                        )}
-                        onClick={() => onToggleAvailability(opt.value)}
-                      >
-                        {opt.label}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            {hasAvailabilityFilter && (
-              <div className="flex flex-wrap gap-1.5 border-t border-border pt-2">
-                <Badge
-                  variant="outline"
-                  className="cursor-pointer border-transparent text-xs font-normal opacity-70 hover:opacity-100"
-                  onClick={onSelectAllAvailability}
-                >
-                  Select all
-                </Badge>
-              </div>
-            )}
-          </div>
-        </PopoverContent>
-      </Popover>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
 
       {hasActiveFilters && (
         <Button type="button" variant="ghost" size="sm" className="text-muted-foreground text-xs font-semibold" onClick={onRemoveFilters}>

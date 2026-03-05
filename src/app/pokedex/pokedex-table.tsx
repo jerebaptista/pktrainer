@@ -1,21 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import Link from "next/link";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getTypeBadgeClassName } from "@/lib/type-colors";
 import type { PokemonRow } from "@/lib/pokeapi";
 import {
   PokedexFilters,
@@ -31,7 +20,9 @@ import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { SectionTableLayout } from "@/components/section-table-layout";
-import Tilt from "react-parallax-tilt";
+import { PokedexCompareView } from "./pokedex-compare-view";
+import { PokedexCardView } from "./pokedex-card-view";
+import { PokedexTableView } from "./pokedex-table-view";
 
 const STAT_KEYS = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed", "bst"] as const;
 /** Stat columns without total (BST) – used when Max/Min Stats are active; MST column hidden. */
@@ -42,79 +33,7 @@ type SortDir = "asc" | "desc";
 
 const MAX_SELECT_FOR_COMPARE = 6;
 
-/** Pokémon that get glare effect on the card (Parallax Tilt). */
-const POKEMON_WITH_GLARE = new Set(["articuno", "zapdos", "moltres", "mewtwo", "mew"]);
-
-/** Glare color per legendary (CSS color). */
-const LEGENDARY_GLARE_COLOR: Record<string, string> = {
-  articuno: "lightblue",
-  zapdos: "lightyellow",
-  moltres: "lightcoral",
-  mewtwo: "plum",
-  mew: "lightpink",
-};
-
-/**
- * Largura fixa de cada coluna em rem. Altere os valores aqui para mudar a largura;
- * são aplicados via style para ter prioridade sobre outras regras.
- */
-const COLUMN_WIDTH_REM: Record<keyof typeof COLUMN_WIDTH_GROUPS, number> = {
-  select: 2,
-  sprite: 4,
-  id: 3,
-  name: 12,
-  type: 10,
-  statsEach: 4.5,
-  heightWeight: 5.5,
-  evYield: 9,
-  growth: 8,
-  availability: 15,
-};
-
-const COLUMN_WIDTH_GROUPS = {
-  select: "select",
-  sprite: "sprite",
-  id: "id",
-  name: "name",
-  type: "type",
-  statsEach: "statsEach",
-  heightWeight: "heightWeight",
-  evYield: "evYield",
-  growth: "growth",
-  availability: "availability",
-} as const;
-
-function getColumnWidthStyle(group: keyof typeof COLUMN_WIDTH_GROUPS): { width: string; minWidth: string } {
-  const rem = COLUMN_WIDTH_REM[group];
-  const s = `${rem}rem`;
-  return { width: s, minWidth: s };
-}
-
-/** Colunas fixas no scroll horizontal (sticky). Ordem: select, sprite, id, name. */
-const STICKY_COLUMN_KEYS = ["select", "sprite", "id", "name"] as const;
-const STICKY_LEFT_REM: number[] = [];
-let acc = 0;
-for (const key of STICKY_COLUMN_KEYS) {
-  STICKY_LEFT_REM.push(acc);
-  acc += COLUMN_WIDTH_REM[key];
-}
-
-function getStickyCellStyle(columnIndex: number): CSSProperties {
-  if (columnIndex >= STICKY_LEFT_REM.length) return {};
-  const leftRem = STICKY_LEFT_REM[columnIndex];
-  return {
-    position: "sticky",
-    left: `${leftRem}rem`,
-    zIndex: 10 + columnIndex,
-    backgroundColor: "hsl(var(--background))",
-    boxShadow:
-      columnIndex === STICKY_LEFT_REM.length - 1
-        ? "2px 0 4px -2px rgba(0,0,0,0.1)"
-        : "1px 0 0 0 hsl(var(--border))",
-  };
-}
-
-/** Extra column id → width group */
+/** Extra column id → width group (used for columnWidthKeys). */
 const EXTRA_COLUMN_GROUP: Record<
   ExtraColumnId,
   "stats" | "heightWeight" | "evYield" | "growth" | "availability"
@@ -129,39 +48,19 @@ const EXTRA_COLUMN_GROUP: Record<
   availability: "availability",
 };
 
-/** Order for availability sort (column value ordering). Atoms and compound order. */
-const AVAILABILITY_ORDER = [
-  "Wild",
-  "Wild, FR Only",
-  "Wild, LG Only",
-  "NPC Trade",
-  "Gift",
-  "Gift, FR Only",
-  "Gift, LG Only",
-  "Game Corner",
-  "Purchase",
-  "Fossil",
-  "FR Only",
-  "LG Only",
-  "Trade Evo",
-  "Fire Stone",
-  "Water Stone",
-  "Thunder Stone",
-  "Leaf Stone",
-  "Moon Stone",
-  "Event",
-];
-
-const EXTRA_COLUMN_IS_NUMERIC: Record<ExtraColumnId, boolean> = {
-  baseFriendship: true,
-  baseExp: true,
-  catchRate: true,
-  evYield: false,
-  availability: false,
-  growthRate: false,
-  height: true,
-  weight: true,
-};
+/** Used for columnWidthKeys type (keyof typeof COLUMN_WIDTH_GROUPS). */
+const COLUMN_WIDTH_GROUPS = {
+  select: "select",
+  sprite: "sprite",
+  id: "id",
+  name: "name",
+  type: "type",
+  statsEach: "statsEach",
+  heightWeight: "heightWeight",
+  evYield: "evYield",
+  growth: "growth",
+  availability: "availability",
+} as const;
 
 const STAT_LABELS: Record<StatKey, string> = {
   hp: "HP",
@@ -330,7 +229,9 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   const typesInitialized = useRef(false);
   useEffect(() => {
     if (allTypes.length > 0 && !typesInitialized.current) {
-      setSelectedTypes([...allTypes]);
+      queueMicrotask(() => {
+        setSelectedTypes([...allTypes]);
+      });
       typesInitialized.current = true;
     }
   }, [allTypes]);
@@ -351,8 +252,10 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<PokedexViewMode>("card");
+  const lastViewBeforeCompareRef = useRef<PokedexViewMode>("card");
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
   const [cardViewShiny, setCardViewShiny] = useState(false);
+  const [compareBarDragOverIndex, setCompareBarDragOverIndex] = useState<number | null>(null);
 
   const allGrowthRates = useMemo(() => {
     const raw = [...new Set(data.map((p) => p.growthRate).filter(Boolean))].sort();
@@ -364,10 +267,18 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
 
   useEffect(() => {
     if (allGrowthRates.length > 0 && !growthRatesInitialized.current) {
-      setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
+      queueMicrotask(() => {
+        setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
+      });
       growthRatesInitialized.current = true;
     }
   }, [allGrowthRates]);
+
+  useEffect(() => {
+    if (viewMode === "card" || viewMode === "table") {
+      lastViewBeforeCompareRef.current = viewMode;
+    }
+  }, [viewMode]);
 
   const filtered = useMemo(() => {
     if (SKIP_FILTERS_DEBUG) return data;
@@ -423,7 +334,9 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
   /** Only show BST column when Base Stats is active; hide MST for Max/Min. */
   const statColumns = statsMode === "base" ? STAT_KEYS : STAT_KEYS_NO_TOTAL;
   useEffect(() => {
-    if (statsMode !== "base" && sortKey === "bst") setSortKey("id");
+    if (statsMode !== "base" && sortKey === "bst") {
+      queueMicrotask(() => setSortKey("id"));
+    }
   }, [statsMode, sortKey]);
 
   /** Ordem e largura de cada coluna (para <colgroup>); larguras fixas assim não encolhem. */
@@ -453,6 +366,16 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
 
   const clearSelection = () => setSelectedIds([]);
 
+  const reorderSelection = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setSelectedIds((prev) => {
+      const next = [...prev];
+      const [id] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, id);
+      return next;
+    });
+  };
+
   const removeAllFilters = () => {
     setSearch("");
     setSelectedTypes([...allTypes]);
@@ -461,13 +384,6 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     setSelectedGrowthRates(allGrowthRates.map((g) => g.value));
     setSelectedAvailability([...ALL_AVAILABILITY_VALUES]);
   };
-
-  const stats =
-    statsMode === "base"
-      ? "baseStats"
-      : statsMode === "max"
-        ? "maxStats"
-        : "minStats";
 
   const toggleType = (type: string) => {
     setSelectedTypes((prev) => {
@@ -511,33 +427,11 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     }
   }
 
-  const SortIcon = ({ column }: { column: SortKey }) => {
-    const isActive = sortKey === column;
-    const iconClass = "ml-1 size-3.5 shrink-0";
-    if (!isActive) {
-      return (
-        <ArrowUpDown
-          className={cn(iconClass, "opacity-0 transition-opacity group-hover:opacity-50")}
-          aria-hidden
-        />
-      );
-    }
-    return (
-      <span className="inline-flex text-primary" aria-hidden>
-        {sortDir === "asc" ? (
-          <ArrowUp className={iconClass} />
-        ) : (
-          <ArrowDown className={iconClass} />
-        )}
-      </span>
-    );
-  };
-
   return (
     <>
       <SectionTableLayout
         title="Pokémon"
-        count={sorted.length}
+        count={viewMode === "compare" ? selectedPokemon.length : sorted.length}
         filters={
           <PokedexFilters
         viewMode={viewMode}
@@ -593,7 +487,9 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
           />
         }
       >
-        {viewMode === "table" ? (
+        {viewMode === "compare" ? (
+          <PokedexCompareView selectedPokemon={selectedPokemon} />
+        ) : viewMode === "table" ? (
           sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
               <img
@@ -614,254 +510,22 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               </Button>
             </div>
           ) : (
-        <table
-          style={{
-            width: "100%",
-            minWidth: "max-content",
-            tableLayout: "fixed",
-          }}
-          className={cn(
-            "caption-bottom text-sm",
-            "[&_th]:!bg-background [&_td]:!bg-background",
-            "[&_thead_th]:[box-shadow:inset_0_-2px_0_0_hsl(var(--border))]",
-            "[&_td]:border-b [&_td]:border-border [&_th]:border-b [&_th]:border-border",
-            "[&_tbody_tr:last-child_td]:border-b-0",
-            "[&_tbody_tr:hover_td]:!bg-muted",
-            "[&_th]:px-1 [&_td]:px-1 [&_th]:text-left [&_td]:text-left [&_th]:font-normal [&_td]:text-sm"
-          )}
-        >
-          <colgroup>
-            {columnWidthKeys.map((key, i) => {
-              const rem = COLUMN_WIDTH_REM[key];
-              const w = `${rem}rem`;
-              return <col key={i} style={{ width: w, minWidth: w }} />;
-            })}
-            {/* Coluna vazia que ocupa o espaço restante: linhas da row vão até o fim da área visível */}
-            <col key="spacer" />
-          </colgroup>
-          <TableHeader>
-            <TableRow
-              className="!border-b-0"
-              style={{
-                position: "sticky",
-                top: 0,
-                zIndex: 15,
-                backgroundColor: "hsl(var(--background))",
-              }}
-            >
-              <TableHead style={{ ...getColumnWidthStyle("select"), ...getStickyCellStyle(0) }} className="shrink-0" />
-              <TableHead style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="shrink-0 !bg-background" />
-              <TableHead style={{ ...getColumnWidthStyle("id"), ...getStickyCellStyle(2) }} className="group whitespace-nowrap shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleSort("id")}
-                  className="inline-flex items-center hover:text-foreground"
-                >
-                  ID
-                  <SortIcon column="id" />
-                </button>
-              </TableHead>
-              <TableHead style={{ ...getColumnWidthStyle("name"), ...getStickyCellStyle(3) }} className="group whitespace-nowrap overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleSort("name")}
-                  className="inline-flex items-center hover:text-foreground"
-                >
-                  Name
-                  <SortIcon column="name" />
-                </button>
-              </TableHead>
-              <TableHead style={getColumnWidthStyle("type")} className="group whitespace-nowrap overflow-hidden shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleSort("type")}
-                  className="inline-flex items-center hover:text-foreground"
-                >
-                  Type
-                  <SortIcon column="type" />
-                </button>
-              </TableHead>
-              {statColumns.map((key) => (
-                <TableHead key={key} style={getColumnWidthStyle("statsEach")} className="group whitespace-nowrap overflow-hidden shrink-0">
-                  {key === "bst" ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => handleSort(key)}
-                          className="inline-flex items-center hover:text-foreground"
-                        >
-                          {statLabels[key]}
-                          <SortIcon column={key} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        {statsMode === "base"
-                          ? "Base Stats Total"
-                          : statsMode === "max"
-                            ? "Max. Stats Total"
-                            : "Min. Stats Total"}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSort(key)}
-                      className="inline-flex items-center hover:text-foreground"
-                    >
-                      {statLabels[key]}
-                      <SortIcon column={key} />
-                    </button>
-                  )}
-                </TableHead>
-              ))}
-              {effectiveExtraColumns.map((id) => {
-                const opt = EXTRA_COLUMN_OPTIONS.find((o) => o.id === id);
-                const widthGroup = EXTRA_COLUMN_GROUP[id];
-                const widthGroupKey = widthGroup === "stats" ? "statsEach" : widthGroup;
-                return (
-                  <TableHead key={id} style={getColumnWidthStyle(widthGroupKey)} className={cn(id === "availability" && "px-1.5", "group whitespace-nowrap overflow-hidden shrink-0")}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(id)}
-                      className="inline-flex items-center hover:text-foreground"
-                    >
-                      {opt?.label ?? id}
-                      <SortIcon column={id} />
-                    </button>
-                  </TableHead>
-                );
-              })}
-              <TableHead key="spacer" className="border-b border-border !bg-background" aria-hidden />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell style={{ ...getColumnWidthStyle("select"), ...getStickyCellStyle(0) }} className="py-1 align-middle shrink-0">
-                  <label
-                    htmlFor={`pokedex-select-${p.id}`}
-                    className="flex min-h-full w-full cursor-pointer items-center justify-center py-2"
-                  >
-                    <Checkbox
-                      id={`pokedex-select-${p.id}`}
-                      checked={selectedIds.includes(p.id)}
-                      onCheckedChange={() => toggleSelect(p.id)}
-                      disabled={selectedIds.length >= MAX_SELECT_FOR_COMPARE && !selectedIds.includes(p.id)}
-                      aria-label={`Select ${getPokemonDisplayName(p.name)} for comparison`}
-                    />
-                  </label>
-                </TableCell>
-                <TableCell style={{ ...getColumnWidthStyle("sprite"), ...getStickyCellStyle(1) }} className="py-1 shrink-0 align-middle !bg-background">
-                  <div className="flex h-full min-h-full items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (p.cryUrl) {
-                        const audio = new Audio(p.cryUrl);
-                        audio.volume = 0.2;
-                        audio.play().catch(() => {});
-                      }
-                    }}
-                    disabled={!p.cryUrl}
-                    className={cn(
-                      "rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      p.cryUrl && "cursor-pointer hover:opacity-80 active:scale-95 transition-all"
-                    )}
-                    aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
-                  >
-                    <Avatar size="lg" className="overflow-hidden rounded-full border border-border bg-muted pointer-events-none">
-                      {p.spriteUrl ? (
-                        <AvatarImage
-                          src={p.spriteUrl}
-                          alt={getPokemonDisplayName(p.name)}
-                          className="size-full object-contain object-center [transform-origin:center]"
-                        />
-                      ) : (
-                        <AvatarFallback className="text-xs">
-                          {getPokemonDisplayName(p.name).slice(0, 2)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  </button>
-                  </div>
-                </TableCell>
-                <TableCell style={{ ...getColumnWidthStyle("id"), ...getStickyCellStyle(2) }} className="font-mono text-muted-foreground tabular-nums shrink-0">
-                  #{String(p.id).padStart(3, "0")}
-                </TableCell>
-                <TableCell style={{ ...getColumnWidthStyle("name"), ...getStickyCellStyle(3) }} className="font-medium truncate overflow-hidden shrink-0">
-                  <Link
-                    href={`/pokedex/${p.name}`}
-                    className="text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                  >
-                    {getPokemonDisplayName(p.name)}
-                  </Link>
-                </TableCell>
-                <TableCell style={getColumnWidthStyle("type")} className="overflow-hidden shrink-0">
-                  <div className="flex flex-nowrap gap-0.5 overflow-hidden">
-                    {p.types.map((type) => (
-                      <Badge
-                        key={type}
-                        variant="secondary"
-                        className={cn("shrink-0 capitalize border text-xs", getTypeBadgeClassName(type))}
-                      >
-                        {type}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                {statColumns.map((key) => (
-                  <TableCell
-                    key={key}
-                    style={getColumnWidthStyle("statsEach")}
-                    className="font-mono tabular-nums text-muted-foreground overflow-hidden shrink-0"
-                  >
-                    {key === "bst" ? (
-                      <span className="font-medium">{p[stats][key]}</span>
-                    ) : (
-                      p[stats][key]
-                    )}
-                  </TableCell>
-                ))}
-                {effectiveExtraColumns.map((id) => {
-                  const widthGroup = EXTRA_COLUMN_GROUP[id];
-                  const widthGroupKey = widthGroup === "stats" ? "statsEach" : widthGroup;
-                  return (
-                  <TableCell
-                    key={id}
-                    style={getColumnWidthStyle(widthGroupKey)}
-                    className={cn(
-                      id === "availability" && "px-1.5",
-                      "overflow-hidden shrink-0",
-                      (id === "evYield" || id === "availability") && "whitespace-nowrap",
-                      EXTRA_COLUMN_IS_NUMERIC[id] ? "font-mono tabular-nums text-muted-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {id === "availability" ? (
-                      <span className="whitespace-nowrap">
-                        {p.availability.split(",").map((s, i) => {
-                          const part = s.trim();
-                          const parts = p.availability.split(",");
-                          const isLast = i === parts.length - 1;
-                          return (
-                            <span key={i}>
-                              {renderAvailabilityPart(part, p)}
-                              {!isLast && ", "}
-                            </span>
-                          );
-                        })}
-                      </span>
-                    ) : (
-                      getExtraColumnValue(p, id, heightWeightUnit)
-                    )}
-                  </TableCell>
-                  );
-                })}
-                <TableCell key="spacer" className="border-b border-border !bg-background py-1" aria-hidden />
-              </TableRow>
-            ))}
-          </TableBody>
-        </table>
+            <PokedexTableView
+              sorted={sorted}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={(key) => handleSort(key as SortKey)}
+              statsMode={statsMode}
+              statColumns={statColumns}
+              statLabels={statLabels}
+              effectiveExtraColumns={effectiveExtraColumns}
+              columnWidthKeys={columnWidthKeys}
+              heightWeightUnit={heightWeightUnit}
+              renderAvailabilityPart={renderAvailabilityPart}
+              getExtraColumnValue={getExtraColumnValue}
+            />
           )
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
@@ -883,213 +547,21 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
             </Button>
           </div>
         ) : (
-          <div className="@container w-full p-6">
-            <div className="grid grid-cols-2 gap-4 items-start @[24rem]:grid-cols-3 @[32rem]:grid-cols-4 @[40rem]:grid-cols-5 @[48rem]:grid-cols-6 @[56rem]:grid-cols-7 @[64rem]:grid-cols-8">
-            {sorted.map((p) => {
-              const hasGlare = POKEMON_WITH_GLARE.has(p.name);
-              const isSelected = selectedIds.includes(p.id);
-              const isFlipped = flippedCardId === p.id;
-              const cardSpriteUrl = cardViewShiny && p.spriteUrlShiny ? p.spriteUrlShiny : p.spriteUrl;
-              const toggleFlip = () => {
-                setFlippedCardId((prev) => (prev === p.id ? null : p.id));
-              };
-              return (
-              <div key={p.id} className="group relative">
-                <div className="block rounded-lg">
-                  <Tilt
-                    tiltMaxAngleX={20}
-                    tiltMaxAngleY={20}
-                    perspective={800}
-                    glareEnable={hasGlare}
-                    glareMaxOpacity={0.55}
-                    glareColor={hasGlare ? LEGENDARY_GLARE_COLOR[p.name] ?? "white" : "white"}
-                    glareBorderRadius="0.5rem"
-                  >
-                    <div
-                      className="relative cursor-pointer [perspective:1000px]"
-                      onClick={toggleFlip}
-                    >
-                      {!isFlipped && (selectedIds.length < MAX_SELECT_FOR_COMPARE || isSelected) && (
-                        <div
-                          className={cn(
-                            "absolute left-2 top-2.5 z-20 px-1.5 py-0.5 bg-background rounded-sm  border-border transition-opacity",
-                            "opacity-0 group-hover:opacity-100",
-                            isSelected && "opacity-100"
-                          )}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          role="presentation"
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelect(p.id)}
-                            aria-label={`Select ${getPokemonDisplayName(p.name)} for comparison`}
-                            className="border-border"
-                          />
-                        </div>
-                      )}
-                      <div
-                        className={cn(
-                          "relative w-full transition-transform duration-300 [transform-style:preserve-3d]",
-                          isFlipped && "[transform:rotateY(180deg)]"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "flex min-h-[220px] flex-col gap-2 rounded-xl border bg-card px-4 py-4 shadow-none [backface-visibility:hidden]",
-                            isSelected ? "border-primary" : "border-border",
-                            isFlipped && "pointer-events-none"
-                          )}
-                        >
-                      <div className="relative flex min-h-[100px] w-full items-center justify-center rounded-lg p-3">
-                        <div className="absolute inset-0 rounded-lg bg-muted/50 mix-blend-multiply" aria-hidden />
-                        <div className="relative z-10 flex items-center justify-center">
-                        {cardSpriteUrl ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (p.cryUrl) {
-                                const audio = new Audio(p.cryUrl);
-                                audio.volume = 0.3;
-                                audio.play().catch(() => {});
-                              }
-                            }}
-                            disabled={!p.cryUrl}
-                            className={cn(
-                              "rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-0 bg-transparent p-0",
-                              p.cryUrl && "cursor-pointer hover:opacity-80 active:scale-95 transition-all"
-                            )}
-                            aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
-                          >
-                            <Tilt
-                              tiltReverse
-                              tiltMaxAngleX={15}
-                              tiltMaxAngleY={15}
-                              perspective={800}
-                              className="inline-block"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={cardSpriteUrl}
-                                alt={getPokemonDisplayName(p.name)}
-                                width={96}
-                                height={96}
-                                className="object-contain pointer-events-none"
-                              />
-                            </Tilt>
-                          </button>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                        </div>
-                      </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-mono text-xs font-normal text-muted-foreground">
-                        #{String(p.id).padStart(3, "0")}
-                      </span>
-                      <Link
-                        href={`/pokedex/${p.name}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-block w-fit max-w-full truncate font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                      >
-                        {getPokemonDisplayName(p.name)}
-                      </Link>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mb-1">
-                      {p.types.map((t) => (
-                        <span
-                          key={t}
-                          className={cn(
-                            "rounded px-2 py-0.5 text-xs font-medium capitalize",
-                            getTypeBadgeClassName(t)
-                          )}
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{formatHeight(p.height, heightWeightUnit)}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>Height</TooltipContent>
-                      </Tooltip>
-                      <span aria-hidden>·</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{formatWeight(p.weight, heightWeightUnit)}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>Weight</TooltipContent>
-                      </Tooltip>
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground" title={p.availability}>
-                      {p.availability.split(",").map((s, i) => {
-                        const part = s.trim();
-                        const parts = p.availability.split(",");
-                        const isLast = i === parts.length - 1;
-                        return (
-                          <span key={i}>
-                            {renderAvailabilityPart(part, p)}
-                            {!isLast && ", "}
-                          </span>
-                        );
-                      })}
-                    </p>
-                        </div>
-                        <div
-                          className={cn(
-                            "absolute inset-0 flex flex-col gap-1 rounded-xl border bg-card px-4 py-4 shadow-none [backface-visibility:hidden] [transform:rotateY(180deg)]",
-                            isSelected ? "border-primary" : "border-border"
-                          )}
-                        >
-                          {(() => {
-                            const statsSource = statsMode === "base" ? p.baseStats : statsMode === "max" ? p.maxStats : p.minStats;
-                            return (
-                              <div className="flex flex-col gap-1 text-xs">
-                                {statColumns.map((key) => (
-                                  <span key={key} className="flex justify-between font-mono">
-                                    <span className="text-muted-foreground">{statLabels[key]}</span>
-                                    <span>{statsSource[key] ?? "—"}</span>
-                                  </span>
-                                ))}
-                                <div className="my-1.5 border-t border-border" role="separator" />
-                                <span className="flex justify-between font-mono">
-                                  <span className="text-muted-foreground">Base Exp.</span>
-                                  <span>{p.baseExperience ?? "—"}</span>
-                                </span>
-                                <span className="flex justify-between font-mono">
-                                  <span className="text-muted-foreground">Catch rate</span>
-                                  <span>{p.catchRate ?? "—"}</span>
-                                </span>
-                                <span className="flex justify-between">
-                                  <span className="text-muted-foreground">EV Yield</span>
-                                  <span className="truncate">{p.evYield ?? "—"}</span>
-                                </span>
-                                <span className="flex justify-between font-mono">
-                                  <span className="text-muted-foreground">Friendship</span>
-                                  <span>{p.baseFriendship ?? "—"}</span>
-                                </span>
-                                <span className="flex justify-between">
-                                  <span className="text-muted-foreground">Growth rate</span>
-                                  <span>{p.growthRate ? p.growthRate.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"}</span>
-                                </span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  </Tilt>
-                </div>
-              </div>
-            );
-            })}
-            </div>
-          </div>
+          <PokedexCardView
+            sorted={sorted}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            flippedCardId={flippedCardId}
+            onFlippedCardIdChange={setFlippedCardId}
+            cardViewShiny={cardViewShiny}
+            statsMode={statsMode}
+            statColumns={statColumns}
+            statLabels={statLabels}
+            heightWeightUnit={heightWeightUnit}
+            renderAvailabilityPart={renderAvailabilityPart}
+            formatHeight={formatHeight}
+            formatWeight={formatWeight}
+          />
         )}
       </SectionTableLayout>
 
@@ -1100,7 +572,15 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
           role="status"
           aria-label="Pokémon selected for comparison"
         >
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2"
+            onDragLeave={(e) => {
+              const related = e.relatedTarget as Node | null;
+              if (!related || !e.currentTarget.contains(related)) {
+                setCompareBarDragOverIndex(null);
+              }
+            }}
+          >
             {selectedPokemon.map((p, i) => (
               <Fragment key={p.id}>
                 {i > 0 && <Separator orientation="vertical" className="h-8 shrink-0" />}
@@ -1108,11 +588,42 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
+                    draggable
                     onClick={() => toggleSelect(p.id)}
-                    className="group relative flex shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={`Remove ${getPokemonDisplayName(p.name)} from selection`}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", String(i));
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setCompareBarDragOverIndex(i);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setCompareBarDragOverIndex(null);
+                      const fromIndex = Number(e.dataTransfer.getData("text/plain"));
+                      if (!Number.isNaN(fromIndex) && fromIndex !== i) {
+                        reorderSelection(fromIndex, i);
+                      }
+                    }}
+                    onDragEnd={() => setCompareBarDragOverIndex(null)}
+                    className="group relative flex shrink-0 cursor-grab rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+                    aria-label={`${getPokemonDisplayName(p.name)} – drag to reorder, click to remove`}
                   >
-                    <Avatar size="lg" className="size-10 overflow-hidden rounded-full border border-border bg-muted">
+                    {compareBarDragOverIndex === i && (
+                      <span
+                        className="absolute inset-0 z-0 flex size-10 shrink-0 items-center justify-center rounded-full bg-muted"
+                        aria-hidden
+                      />
+                    )}
+                    <Avatar
+                      size="lg"
+                      className={cn(
+                        "relative z-10 size-10 overflow-hidden rounded-full border border-border bg-muted pointer-events-none transition-opacity",
+                        compareBarDragOverIndex === i && "opacity-60"
+                      )}
+                    >
                       {p.spriteUrl ? (
                         <AvatarImage
                           src={p.spriteUrl}
@@ -1125,7 +636,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                         </AvatarFallback>
                       )}
                     </Avatar>
-                    <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
                       <X className="size-3" />
                     </span>
                   </button>
@@ -1136,24 +647,54 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
               </Tooltip>
               </Fragment>
             ))}
+            {viewMode === "compare" && selectedPokemon.length < MAX_SELECT_FOR_COMPARE && (
+              <>
+                {selectedPokemon.length > 0 && (
+                  <Separator orientation="vertical" className="h-8 shrink-0" />
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode(lastViewBeforeCompareRef.current ?? "card")}
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="Add Pokémon to compare (switch to previous view)"
+                    >
+                      <Plus className="size-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Add Pokémon
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )}
           </div>
-          <Separator orientation="vertical" className="h-8 shrink-0" />
-          <div className="flex items-center gap-1 pl-1">
-            <Button size="sm" asChild>
-              <Link href={`/pokedex/compare?ids=${selectedIds.join(",")}`}>
-                Compare
-              </Link>
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-8 shrink-0"
-              onClick={clearSelection}
-              aria-label="Clear selection"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
+          {viewMode !== "compare" && (
+            <>
+              <Separator orientation="vertical" className="h-8 shrink-0" />
+              <div className="flex items-center gap-1 pl-1">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    lastViewBeforeCompareRef.current = viewMode;
+                    setViewMode("compare");
+                  }}
+                >
+                  Compare
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8 shrink-0"
+                  onClick={clearSelection}
+                  aria-label="Clear selection"
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </>

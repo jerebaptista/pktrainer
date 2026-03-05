@@ -233,7 +233,7 @@ export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonIn
         const weightKg = pokemon.weight / 10;
         const weightLbs = (weightKg * 2.20462).toFixed(1);
         return (
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-1.5">
