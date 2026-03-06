@@ -20,6 +20,33 @@ export const typeBadgeClasses: Record<string, string> = {
   fairy: "!bg-fuchsia-200 !text-fuchsia-900 border-transparent dark:!bg-fuchsia-300 dark:!text-fuchsia-950",
 };
 
+/** Hex background color per type (Tailwind 400 shade) for charts. */
+export const typeChartColors: Record<string, string> = {
+  normal: "#94a3b8",
+  fire: "#f87171",
+  water: "#60a5fa",
+  grass: "#4ade80",
+  electric: "#facc15",
+  ice: "#22d3ee",
+  fighting: "#fb923c",
+  poison: "#a78bfa",
+  ground: "#fbbf24",
+  flying: "#38bdf8",
+  psychic: "#f472b6",
+  bug: "#a3e635",
+  rock: "#a8a29e",
+  ghost: "#c084fc",
+  dragon: "#818cf8",
+  dark: "#a3a3a3",
+  steel: "#a1a1aa",
+  fairy: "#e879f9",
+};
+
+export function getTypeChartColor(type: string): string {
+  const key = type.toLowerCase();
+  return typeChartColors[key] ?? "#a1a1aa";
+}
+
 export function getTypeBadgeClassName(type: string): string {
   const key = type.toLowerCase();
   return typeBadgeClasses[key] ?? "!bg-muted !text-muted-foreground border-transparent";

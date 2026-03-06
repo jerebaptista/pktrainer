@@ -30,14 +30,23 @@ type NavItem = { label: string; href: string; iconSlug: string; iconLocal?: stri
 
 const navPokedex: NavItem[] = [
   { label: "Pokémon", href: "/pokedex", iconSlug: "poke-ball" },
-  { label: "Moves", href: "/moves", iconSlug: "tm-case" },
+  { label: "Moves", href: "/moves", iconSlug: "machine-part" },
   { label: "Abilities", href: "/abilities", iconSlug: "lucky-egg" },
+  { label: "Individual Values", href: "/pokedex/iv", iconSlug: "power-weight" },
+  { label: "Effort Values", href: "/pokedex/ev", iconSlug: "macho-brace" },
+  { label: "Personality", href: "/pokedex/personality", iconSlug: "soothe-bell" },
+  { label: "Nature", href: "/pokedex/nature", iconSlug: "leaf-stone" },
+  { label: "Breeding", href: "/pokedex/breeding", iconSlug: "mystery-egg" },
 ];
 
 const navGuides: NavItem[] = [
   { label: "Walkthrough", href: "/walkthrough", iconSlug: "fame-checker", iconLocal: "/running-shoes.png" },
   { label: "Locations", href: "/locations", iconSlug: "town-map" },
   { label: "Items", href: "/items", iconSlug: "potion" },
+];
+
+const navOthers: NavItem[] = [
+  { label: "Blog", href: "/blog", iconSlug: "journal" },
   { label: "About", href: "/about", iconSlug: "rare-candy" },
 ];
 
@@ -110,6 +119,31 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {navGuides.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label} className="group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!min-w-10">
+                      <Link href={item.href} className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 min-h-6 min-w-6 shrink-0 items-center justify-center">
+                          <Image
+                            src={item.iconLocal ?? itemSpriteUrl(item.iconSlug)}
+                            alt=""
+                            width={24}
+                            height={24}
+                            className="size-6 object-contain"
+                          />
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Others</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navOthers.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label} className="group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!min-w-10">
                       <Link href={item.href} className="flex items-center gap-2">

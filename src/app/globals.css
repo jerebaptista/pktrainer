@@ -149,6 +149,13 @@ body {
   --chart-3: #4ade80;
   --chart-4: #86efac;
   --chart-5: #bbf7d0;
+  /* Compare chart bars: green-100 … green-600 */
+  --compare-bar-1: #dcfce7;
+  --compare-bar-2: #bbf7d0;
+  --compare-bar-3: #86efac;
+  --compare-bar-4: #4ade80;
+  --compare-bar-5: #22c55e;
+  --compare-bar-6: #16a34a;
 }
 [data-theme="green"].dark {
   --primary: oklch(0.65 0.15 155);
@@ -162,6 +169,12 @@ body {
   --chart-3: #86efac;
   --chart-4: #16a34a;
   --chart-5: #4ade80;
+  --compare-bar-1: #14532d;
+  --compare-bar-2: #166534;
+  --compare-bar-3: #16a34a;
+  --compare-bar-4: #22c55e;
+  --compare-bar-5: #4ade80;
+  --compare-bar-6: #86efac;
 }
 
 /* Theme: Red (FireRed) – primary in red; charts red palette */
@@ -177,6 +190,13 @@ body {
   --chart-3: #f87171;
   --chart-4: #fca5a5;
   --chart-5: #fecaca;
+  /* Compare chart bars: red-100 … red-600 */
+  --compare-bar-1: #fef2f2;
+  --compare-bar-2: #fee2e2;
+  --compare-bar-3: #fecaca;
+  --compare-bar-4: #fca5a5;
+  --compare-bar-5: #f87171;
+  --compare-bar-6: #ef4444;
 }
 [data-theme="red"].dark {
   --primary: oklch(0.65 0.18 25);
@@ -190,4 +210,10 @@ body {
   --chart-3: #fca5a5;
   --chart-4: #dc2626;
   --chart-5: #f87171;
+  --compare-bar-1: #7f1d1d;
+  --compare-bar-2: #991b1b;
+  --compare-bar-3: #b91c1c;
+  --compare-bar-4: #dc2626;
+  --compare-bar-5: #ef4444;
+  --compare-bar-6: #f87171;
 }
