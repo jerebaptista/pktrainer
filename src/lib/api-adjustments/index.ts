@@ -7,7 +7,7 @@
  * - (Future: other fields we want to correct or enrich.)
  */
 
-export { getPokemonDisplayName } from "./display-names";
+export { getPokemonDisplayName, getLocalizedPokemonName } from "./display-names";
 
 export {
   buildAvailability,

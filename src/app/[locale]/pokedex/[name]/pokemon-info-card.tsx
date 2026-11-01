@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Mars, Ruler, Scale, Sparkles, Venus, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,8 +22,10 @@ import { getTypeBadgeClassName } from "@/lib/type-colors";
 import {
   getEncounterDisplayContent,
   getLocationDisplayName,
-  getPokemonDisplayName,
 } from "@/lib/api-adjustments";
+import { pickLocalizedName } from "@/lib/locale";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
+import { useLocale } from "next-intl";
 import type { PokemonRow } from "@/lib/pokeapi";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatApiName } from "@/lib/utils";
@@ -36,6 +38,8 @@ type PokemonInfoCardProps = {
 };
 
 export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonInfoCardProps) {
+  const locale = useLocale();
+  const getName = usePokemonName();
   const [spriteFront, setSpriteFront] = useState(true);
   const [shiny, setShiny] = useState(false);
   const [female, setFemale] = useState(false);
@@ -54,7 +58,12 @@ export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonIn
     return () => window.removeEventListener("pk-trainer-theme-color-change", read);
   }, [themeProp]);
 
-  const displayName = getPokemonDisplayName(pokemon.name);
+  const displayName = getName(pokemon);
+  const genus = pickLocalizedName(pokemon.localizedGenera, locale, pokemon.speciesGenus);
+  const flavor =
+    theme === "red"
+      ? pickLocalizedName(pokemon.localizedFlavorFireRed, locale, pokemon.flavorTextFireRed ?? "—")
+      : pickLocalizedName(pokemon.localizedFlavorLeafGreen, locale, pokemon.flavorTextLeafGreen ?? "—");
   const {
     spriteUrl,
     spriteUrlShiny,
@@ -211,12 +220,10 @@ export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonIn
       {/* Species + description (versão FR/LG por tema) */}
       <div className="mt-3">
         <p className="text-sm font-semibold text-muted-foreground">
-          {pokemon.speciesGenus}
+          {genus}
         </p>
         <p className="mt-1 text-sm text-foreground">
-          {theme === "red"
-            ? (pokemon.flavorTextFireRed ?? "—")
-            : (pokemon.flavorTextLeafGreen ?? "—")}
+          {flavor}
         </p>
       </div>
       {/* Height, Weight (metric + imperial, inline com ícones e tooltips) */}

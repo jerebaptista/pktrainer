@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
@@ -207,7 +207,7 @@ export function MoveDrawerContent({ move, learnIndex, pokemonList }: MoveDrawerC
                       #{String(p.id).padStart(3, "0")}
                     </TableCell>
                     <TableCell className="py-1">
-                      <Link href={`/pokedex/${p.name}`} className="text-foreground font-medium hover:underline">
+                      <Link href={`/pokemon/${p.id}`} className="text-foreground font-medium hover:underline">
                         {getPokemonDisplayName(p.name)}
                       </Link>
                     </TableCell>
@@ -268,7 +268,7 @@ export function MoveDrawerContent({ move, learnIndex, pokemonList }: MoveDrawerC
                       #{String(p.id).padStart(3, "0")}
                     </TableCell>
                     <TableCell className="py-1">
-                      <Link href={`/pokedex/${p.name}`} className="text-foreground font-medium hover:underline">
+                      <Link href={`/pokemon/${p.id}`} className="text-foreground font-medium hover:underline">
                         {getPokemonDisplayName(p.name)}
                       </Link>
                     </TableCell>

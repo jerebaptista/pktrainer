@@ -1,12 +1,23 @@
+import { getTranslations } from "next-intl/server";
+import type { AppLocale } from "@/i18n/routing";
 import { fetchKantoPokemon } from "@/lib/pokeapi";
 import { PokedexTable } from "./pokedex-table";
 
 /** Evita ISR com payload >19MB (151 Pokémon completos). Página renderizada sob demanda. */
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Pokémon – PKtrainer",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale: locale as AppLocale, namespace: "Metadata" });
+  return {
+    title: t("pokedexTitle"),
+    description: t("pokedexDescription"),
+  };
+}
 
 export default async function PokedexPage() {
   const pokemon = await fetchKantoPokemon();

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import {
   TableBody,
   TableCell,
@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
-import { getPokemonDisplayName } from "@/lib/api-adjustments";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
 import type { BaseStats, PokemonRow } from "@/lib/pokeapi";
 import type { ExtraColumnId, StatsMode } from "./pokedex-filters";
 import { EXTRA_COLUMN_OPTIONS } from "./pokedex-filters";
@@ -171,6 +171,7 @@ export function PokedexTableView({
   renderAvailabilityPart,
   getExtraColumnValue,
 }: PokedexTableViewProps) {
+  const getName = usePokemonName();
   const stats =
     statsMode === "base" ? "baseStats" : statsMode === "max" ? "maxStats" : "minStats";
 
@@ -277,7 +278,7 @@ export function PokedexTableView({
                   checked={selectedIds.includes(p.id)}
                   onCheckedChange={() => onToggleSelect(p.id)}
                   disabled={selectedIds.length >= MAX_SELECT_FOR_COMPARE && !selectedIds.includes(p.id)}
-                  aria-label={`Select ${getPokemonDisplayName(p.name)} for comparison`}
+                  aria-label={`Select ${getName(p)} for comparison`}
                 />
               </label>
             </TableCell>
@@ -297,18 +298,18 @@ export function PokedexTableView({
                     "rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     p.cryUrl && "cursor-pointer hover:opacity-80 active:scale-95 transition-all"
                   )}
-                  aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
+                  aria-label={p.cryUrl ? `Play ${getName(p)} cry` : undefined}
                 >
                   <Avatar size="lg" className="overflow-hidden rounded-full border border-border bg-muted pointer-events-none">
                     {p.spriteUrl ? (
                       <AvatarImage
                         src={p.spriteUrl}
-                        alt={getPokemonDisplayName(p.name)}
+                        alt={getName(p)}
                         className="size-full object-contain object-center [transform-origin:center]"
                       />
                     ) : (
                       <AvatarFallback className="text-xs">
-                        {getPokemonDisplayName(p.name).slice(0, 2)}
+                        {getName(p).slice(0, 2)}
                       </AvatarFallback>
                     )}
                   </Avatar>
@@ -319,8 +320,8 @@ export function PokedexTableView({
               #{String(p.id).padStart(3, "0")}
             </TableCell>
             <TableCell style={{ ...getColumnWidthStyle("name"), ...getStickyCellStyle(3) }} className="font-medium truncate overflow-hidden shrink-0">
-              <Link href={`/pokedex/${p.name}`} className="text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
-                {getPokemonDisplayName(p.name)}
+              <Link href={`/pokemon/${p.id}`} className="text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+                {getName(p)}
               </Link>
             </TableCell>
             <TableCell style={getColumnWidthStyle("type")} className="overflow-hidden shrink-0">

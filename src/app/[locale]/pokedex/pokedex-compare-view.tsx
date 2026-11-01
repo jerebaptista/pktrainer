@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Ruler, Scale } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -43,10 +43,10 @@ import {
   YAxis,
 } from "recharts";
 import type { BaseStats, PokemonRow } from "@/lib/pokeapi";
-import {
-  getEncounterDisplayContent,
-  getPokemonDisplayName,
-} from "@/lib/api-adjustments";
+import { getEncounterDisplayContent } from "@/lib/api-adjustments";
+import { pickLocalizedName } from "@/lib/locale";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
+import { useLocale } from "next-intl";
 import { getTypeBadgeClassName, getTypeChartColor } from "@/lib/type-colors";
 import type { MovesTableData } from "@/lib/moves-table";
 import { fetchMovesTableData } from "@/lib/moves-table";
@@ -121,11 +121,13 @@ function CompareColumnContent({
   onMovesOpenChange: (open: boolean) => void;
   movesData: MovesTableData | null;
 }) {
-  const displayName = getPokemonDisplayName(pokemon.name);
+  const locale = useLocale();
+  const getName = usePokemonName();
+  const displayName = getName(pokemon);
   const flavorText =
     theme === "red"
-      ? (pokemon.flavorTextFireRed ?? "—")
-      : (pokemon.flavorTextLeafGreen ?? "—");
+      ? pickLocalizedName(pokemon.localizedFlavorFireRed, locale, pokemon.flavorTextFireRed ?? "—")
+      : pickLocalizedName(pokemon.localizedFlavorLeafGreen, locale, pokemon.flavorTextLeafGreen ?? "—");
   const heightM = pokemon.height / 10;
   const totalInches = heightM * 39.37007874;
   let feet = Math.floor(totalInches / 12);
@@ -153,7 +155,7 @@ function CompareColumnContent({
           #{String(pokemon.id).padStart(3, "0")}
         </span>
         <Link
-          href={`/pokedex/${pokemon.name}`}
+          href={`/pokemon/${pokemon.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="ml-2 font-semibold text-foreground hover:underline"
@@ -162,7 +164,7 @@ function CompareColumnContent({
         </Link>
       </div>
       <Link
-        href={`/pokedex/${pokemon.name}`}
+        href={`/pokemon/${pokemon.id}`}
         target="_blank"
         rel="noopener noreferrer"
         className="relative flex min-h-[100px] w-full items-center justify-center rounded-lg bg-muted/50 p-3"
@@ -344,6 +346,7 @@ function CompareChartTooltip({
   hoveredBar?: ChartHoveredBar | null;
   chartData?: Array<Record<string, string | number>>;
 }) {
+  const getName = usePokemonName();
   const showFromHovered =
     hoveredBar != null &&
     chartData &&
@@ -373,7 +376,7 @@ function CompareChartTooltip({
           )}
           <div className="min-w-0">
             <p className="font-medium text-foreground truncate">
-              {getPokemonDisplayName(pokemon.name)}
+              {getName(pokemon)}
             </p>
             <p className="text-muted-foreground text-xs">
               {statLabel}: {value}
@@ -412,7 +415,7 @@ function CompareChartTooltip({
         )}
         <div className="min-w-0">
           <p className="font-medium text-foreground truncate">
-            {getPokemonDisplayName(pokemon.name)}
+            {getName(pokemon)}
           </p>
           <p className="text-muted-foreground text-xs">
             {statLabel}: {value}
@@ -424,6 +427,7 @@ function CompareChartTooltip({
 }
 
 export function PokedexCompareView({ selectedPokemon }: PokedexCompareViewProps) {
+  const getName = usePokemonName();
   const [statsMode, setStatsMode] = useState<StatsMode>("base");
   const [focusedIndices, setFocusedIndices] = useState<Set<number>>(new Set());
   const [aboutAccordionOpen, setAboutAccordionOpen] = useState(false);
@@ -506,7 +510,7 @@ export function PokedexCompareView({ selectedPokemon }: PokedexCompareViewProps)
   const chartConfig: Record<string, { label?: string; color?: string }> = {};
   selectedPokemon.forEach((p, i) => {
     chartConfig[`val${i}`] = {
-      label: getPokemonDisplayName(p.name),
+      label: getName(p),
       color: barColors[i],
     };
   });
@@ -670,7 +674,7 @@ export function PokedexCompareView({ selectedPokemon }: PokedexCompareViewProps)
                     aria-hidden
                   />
                   <span className="text-sm text-foreground">
-                    {getPokemonDisplayName(p.name)}
+                    {getName(p)}
                   </span>
                 </button>
               ))}

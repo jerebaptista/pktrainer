@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getPokemonDisplayName } from "@/lib/api-adjustments";
 import type { AbilityRow } from "@/lib/abilities-table";
 import type { PokemonListItem } from "./abilities-table";
@@ -81,7 +81,7 @@ export function AbilityDrawerContent({ ability, pokemonList }: AbilityDrawerCont
                     </TableCell>
                     <TableCell className="py-1">
                       <Link
-                        href={`/pokedex/${p.name}`}
+                        href={`/pokemon/${p.id}`}
                         className="text-foreground font-medium hover:underline"
                       >
                         {getPokemonDisplayName(p.name)}
@@ -132,7 +132,7 @@ export function AbilityDrawerContent({ ability, pokemonList }: AbilityDrawerCont
                     </TableCell>
                     <TableCell className="py-1">
                       <Link
-                        href={`/pokedex/${p.name}`}
+                        href={`/pokemon/${p.id}`}
                         className="text-foreground font-medium hover:underline"
                       >
                         {getPokemonDisplayName(p.name)}

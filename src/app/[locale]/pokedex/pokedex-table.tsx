@@ -16,7 +16,9 @@ import {
   type PokedexViewMode,
   type StatsMode,
 } from "./pokedex-filters";
-import { getPokemonDisplayName } from "@/lib/api-adjustments";
+import { getLocalizedPokemonName, getPokemonDisplayName } from "@/lib/api-adjustments";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
+import { useLocale } from "next-intl";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { SectionTableLayout } from "@/components/section-table-layout";
@@ -113,12 +115,18 @@ function sortPokemon(
   data: PokemonRow[],
   key: SortKey,
   dir: SortDir,
-  statsMode: StatsMode
+  statsMode: StatsMode,
+  locale: string
 ): PokemonRow[] {
   const stats = statsMode === "base" ? "baseStats" : statsMode === "max" ? "maxStats" : "minStats";
   const sorted = [...data].sort((a, b) => {
     if (key === "id") return a.id - b.id;
-    if (key === "name") return getPokemonDisplayName(a.name).localeCompare(getPokemonDisplayName(b.name));
+    if (key === "name") {
+      return getLocalizedPokemonName(a.name, a.localizedNames, locale).localeCompare(
+        getLocalizedPokemonName(b.name, b.localizedNames, locale),
+        locale
+      );
+    }
     if (key === "type") {
       const ta = a.types[0] ?? "";
       const tb = b.types[0] ?? "";
@@ -220,6 +228,8 @@ function getExtraColumnValue(
 const SKIP_FILTERS_DEBUG = false;
 
 export function PokedexTable({ data }: { data: PokemonRow[] }) {
+  const locale = useLocale();
+  const getName = usePokemonName();
   const [search, setSearch] = useState("");
   const allTypes = useMemo(
     () => [...new Set(data.flatMap((p) => p.types))].sort(),
@@ -287,8 +297,16 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
     if (q) {
       list = list.filter((p) => {
         const paddedId = String(p.id).padStart(3, "0");
-        const displayName = getPokemonDisplayName(p.name).toLowerCase();
-        return paddedId.includes(q) || p.name.toLowerCase().includes(q) || displayName.includes(q);
+        const displayName = getLocalizedPokemonName(p.name, p.localizedNames, locale).toLowerCase();
+        const localizedMatch = Object.values(p.localizedNames ?? {}).some((name) =>
+          name.toLowerCase().includes(q)
+        );
+        return (
+          paddedId.includes(q) ||
+          p.name.toLowerCase().includes(q) ||
+          displayName.includes(q) ||
+          localizedMatch
+        );
       });
     }
     if (selectedTypes.length > 0) {
@@ -322,11 +340,11 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
       });
     }
     return list;
-  }, [data, search, selectedTypes, selectedEvYields, selectedGrowthRates, selectedAvailability]);
+  }, [data, search, selectedTypes, selectedEvYields, selectedGrowthRates, selectedAvailability, locale]);
 
   const sorted = useMemo(
-    () => sortPokemon(filtered, sortKey, sortDir, statsMode),
-    [filtered, sortKey, sortDir, statsMode]
+    () => sortPokemon(filtered, sortKey, sortDir, statsMode, locale),
+    [filtered, sortKey, sortDir, statsMode, locale]
   );
 
 
@@ -609,7 +627,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                     }}
                     onDragEnd={() => setCompareBarDragOverIndex(null)}
                     className="group relative flex shrink-0 cursor-grab rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
-                    aria-label={`${getPokemonDisplayName(p.name)} – drag to reorder, click to remove`}
+                    aria-label={`${getName(p)} – drag to reorder, click to remove`}
                   >
                     {compareBarDragOverIndex === i && (
                       <span
@@ -627,12 +645,12 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                       {p.spriteUrl ? (
                         <AvatarImage
                           src={p.spriteUrl}
-                          alt={getPokemonDisplayName(p.name)}
+                          alt={getName(p)}
                           className="size-full object-contain object-center"
                         />
                       ) : (
                         <AvatarFallback className="text-xs">
-                          {getPokemonDisplayName(p.name).slice(0, 2)}
+                          {getName(p).slice(0, 2)}
                         </AvatarFallback>
                       )}
                     </Avatar>
@@ -642,7 +660,7 @@ export function PokedexTable({ data }: { data: PokemonRow[] }) {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  {getPokemonDisplayName(p.name)}
+                  {getName(p)}
                 </TooltipContent>
               </Tooltip>
               </Fragment>

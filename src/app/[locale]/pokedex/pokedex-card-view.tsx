@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeBadgeClassName } from "@/lib/type-colors";
-import { getPokemonDisplayName } from "@/lib/api-adjustments";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
 import type { BaseStats, PokemonRow } from "@/lib/pokeapi";
 import { cn } from "@/lib/utils";
 import Tilt from "react-parallax-tilt";
@@ -52,6 +52,7 @@ export function PokedexCardView({
   formatHeight,
   formatWeight,
 }: PokedexCardViewProps) {
+  const getName = usePokemonName();
   return (
     <div className="@container w-full p-6">
       <div className="grid grid-cols-2 gap-4 items-start @[24rem]:grid-cols-3 @[32rem]:grid-cols-4 @[40rem]:grid-cols-5 @[48rem]:grid-cols-6 @[56rem]:grid-cols-7 @[64rem]:grid-cols-8">
@@ -95,7 +96,7 @@ export function PokedexCardView({
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => onToggleSelect(p.id)}
-                          aria-label={`Select ${getPokemonDisplayName(p.name)} for comparison`}
+                          aria-label={`Select ${getName(p)} for comparison`}
                           className="border-border"
                         />
                       </div>
@@ -132,7 +133,7 @@ export function PokedexCardView({
                                   "rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-0 bg-transparent p-0",
                                   p.cryUrl && "cursor-pointer hover:opacity-80 active:scale-95 transition-all"
                                 )}
-                                aria-label={p.cryUrl ? `Play ${getPokemonDisplayName(p.name)} cry` : undefined}
+                                aria-label={p.cryUrl ? `Play ${getName(p)} cry` : undefined}
                               >
                                 <Tilt
                                   tiltReverse
@@ -144,7 +145,7 @@ export function PokedexCardView({
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={cardSpriteUrl}
-                                    alt={getPokemonDisplayName(p.name)}
+                                    alt={getName(p)}
                                     width={96}
                                     height={96}
                                     className="object-contain pointer-events-none"
@@ -161,11 +162,11 @@ export function PokedexCardView({
                             #{String(p.id).padStart(3, "0")}
                           </span>
                           <Link
-                            href={`/pokedex/${p.name}`}
+                            href={`/pokemon/${p.id}`}
                             onClick={(e) => e.stopPropagation()}
                             className="inline-block w-fit max-w-full truncate font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                           >
-                            {getPokemonDisplayName(p.name)}
+                            {getName(p)}
                           </Link>
                         </div>
                         <div className="flex flex-wrap gap-1.5 mb-1">

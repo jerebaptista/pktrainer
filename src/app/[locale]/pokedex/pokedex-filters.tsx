@@ -22,6 +22,7 @@ import { Columns2, Search, ChevronDown, LayoutGrid, Sparkles, Table } from "luci
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslations } from "next-intl";
 
 const FILTER_BUTTON_WIDTH = "min-w-[8.5rem] w-[8.5rem]";
 
@@ -169,6 +170,7 @@ export function PokedexFilters({
   availabilityGroups,
   onRemoveFilters,
 }: PokedexFiltersProps) {
+  const t = useTranslations("Pokedex");
   const hasTypeFilter = selectedTypes.length > 0 && selectedTypes.length < allTypes.length;
   const typeCountLabel =
     hasTypeFilter ? (
@@ -221,7 +223,7 @@ export function PokedexFilters({
       >
         <ToggleGroupItem
           value="card"
-          aria-label="Card view"
+          aria-label={t("cards")}
           className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
         >
           <Tooltip>
@@ -230,12 +232,12 @@ export function PokedexFilters({
                 <LayoutGrid className="size-4" />
               </span>
             </TooltipTrigger>
-            <TooltipContent>Card view</TooltipContent>
+            <TooltipContent>{t("cards")}</TooltipContent>
           </Tooltip>
         </ToggleGroupItem>
         <ToggleGroupItem
           value="table"
-          aria-label="Table view"
+          aria-label={t("table")}
           className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
         >
           <Tooltip>
@@ -244,12 +246,12 @@ export function PokedexFilters({
                 <Table className="size-4" />
               </span>
             </TooltipTrigger>
-            <TooltipContent>Table view</TooltipContent>
+            <TooltipContent>{t("table")}</TooltipContent>
           </Tooltip>
         </ToggleGroupItem>
         <ToggleGroupItem
           value="compare"
-          aria-label="Compare view"
+          aria-label={t("compare")}
           className="bg-background dark:bg-input/30 data-[state=on]:!bg-accent data-[state=on]:!text-accent-foreground"
         >
           <Tooltip>
@@ -258,7 +260,7 @@ export function PokedexFilters({
                 <Columns2 className="size-4" />
               </span>
             </TooltipTrigger>
-            <TooltipContent>Compare view</TooltipContent>
+            <TooltipContent>{t("compare")}</TooltipContent>
           </Tooltip>
         </ToggleGroupItem>
       </ToggleGroup>
@@ -285,7 +287,8 @@ export function PokedexFilters({
       <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
         <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
         <Input
-          placeholder="Search by ID or Name..."
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("search")}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-8"

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getPokemonDisplayName } from "@/lib/api-adjustments";
+import { usePokemonName } from "@/hooks/use-pokemon-name";
 import type { PokemonRow } from "@/lib/pokeapi";
 import type { MovesTableData } from "@/lib/moves-table";
 import { MovesTableSection } from "./pokemon-moves-table";
@@ -45,21 +46,23 @@ function getStatBarColor(value: number, max: number): string {
 
 type PokemonDetailViewProps = {
   pokemon: PokemonRow;
-  allNames: string[];
+  allPokemon: Array<{ name: string; id: number }>;
   movesTableData: MovesTableData;
 };
 
-export function PokemonDetailView({ pokemon, allNames, movesTableData }: PokemonDetailViewProps) {
+export function PokemonDetailView({ pokemon, allPokemon, movesTableData }: PokemonDetailViewProps) {
   const router = useRouter();
-  const safeNames = allNames ?? [];
+  const t = useTranslations("Pokemon");
+  const getName = usePokemonName();
+  const safeList = allPokemon ?? [];
   const currentIndex = useMemo(
-    () => (pokemon ? safeNames.indexOf(pokemon.name) : -1),
-    [pokemon, safeNames]
+    () => (pokemon ? safeList.findIndex((entry) => entry.name === pokemon.name) : -1),
+    [pokemon, safeList]
   );
-  const prevName = currentIndex > 0 ? safeNames[currentIndex - 1]! : null;
-  const nextName =
-    currentIndex >= 0 && currentIndex < safeNames.length - 1
-      ? safeNames[currentIndex + 1]!
+  const prevPokemon = currentIndex > 0 ? safeList[currentIndex - 1] : null;
+  const nextPokemon =
+    currentIndex >= 0 && currentIndex < safeList.length - 1
+      ? safeList[currentIndex + 1]
       : null;
 
   const [theme, setTheme] = useState<"red" | "green">("red");
@@ -75,15 +78,15 @@ export function PokemonDetailView({ pokemon, allNames, movesTableData }: Pokemon
     return () => window.removeEventListener("pk-trainer-theme-color-change", read);
   }, []);
 
-  if (!pokemon || !safeNames.length) {
+  if (!pokemon || !safeList.length) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-muted-foreground">
-        Pokémon not found.
+        {t("notFound")}
       </div>
     );
   }
 
-  const displayName = getPokemonDisplayName(pokemon.name);
+  const displayName = getName(pokemon);
 
   return (
     <div className="grid grid-cols-12 gap-8">
@@ -101,18 +104,18 @@ export function PokemonDetailView({ pokemon, allNames, movesTableData }: Pokemon
           <Button
             variant="outline"
             size="icon"
-            aria-label="Previous Pokémon"
-            disabled={!prevName}
-            onClick={() => prevName && router.push(`/pokedex/${prevName}`)}
+            aria-label={t("previous")}
+            disabled={!prevPokemon}
+            onClick={() => prevPokemon && router.push(`/pokemon/${prevPokemon.id}`)}
           >
             <ChevronLeft className="size-5" />
           </Button>
           <Button
             variant="outline"
             size="icon"
-            aria-label="Next Pokémon"
-            disabled={!nextName}
-            onClick={() => nextName && router.push(`/pokedex/${nextName}`)}
+            aria-label={t("next")}
+            disabled={!nextPokemon}
+            onClick={() => nextPokemon && router.push(`/pokemon/${nextPokemon.id}`)}
           >
             <ChevronRight className="size-5" />
           </Button>

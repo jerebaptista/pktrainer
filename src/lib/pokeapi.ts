@@ -107,6 +107,7 @@ export type SpeciesFromAPI = {
   growth_rate: { name: string };
   evolution_chain?: { url: string };
   evolves_from_species?: { name: string; url: string } | null;
+  names?: Array<{ name: string; language: { name: string } }>;
   genera?: Array<{ genus: string; language: { name: string } }>;
   flavor_text_entries?: Array<{
     flavor_text: string;
@@ -165,10 +166,16 @@ export type PokemonRow = {
   evolvesFromSpeciesName: string | null;
   /** Species genus (e.g. "Seed Pokémon"). */
   speciesGenus: string;
+  /** Localized display names keyed by PokeAPI language code. */
+  localizedNames: Record<string, string>;
+  /** Localized genera keyed by PokeAPI language code. */
+  localizedGenera: Record<string, string>;
   /** Flavor text for FireRed (en). */
   flavorTextFireRed: string | null;
   /** Flavor text for LeafGreen (en). */
   flavorTextLeafGreen: string | null;
+  localizedFlavorFireRed: Record<string, string>;
+  localizedFlavorLeafGreen: Record<string, string>;
   /** Abilities: name and whether hidden. */
   abilities: Array<{ name: string; isHidden: boolean }>;
   /** Move tab ids for FireRed/LeafGreen (level-up, tm-hm, breeding, tutor, special). Only methods that have ≥1 move. */
@@ -206,6 +213,10 @@ function getGenusEn(species: SpeciesFromAPI | undefined): string {
   return entry?.genus ?? "—";
 }
 
+function cleanFlavorText(text: string): string {
+  return text.replace(/\f/g, " ").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function getFlavorTextEn(
   species: SpeciesFromAPI | undefined,
   version: "firered" | "leafgreen"
@@ -214,7 +225,45 @@ function getFlavorTextEn(
     (e) => e.language.name === "en" && e.version.name === version
   );
   if (!entry?.flavor_text) return null;
-  return entry.flavor_text.replace(/\f/g, " ").replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+  return cleanFlavorText(entry.flavor_text);
+}
+
+function mapLocalizedNames(
+  entries: Array<{ name?: string; language?: { name?: string } }> | undefined
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const entry of entries ?? []) {
+    const lang = entry.language?.name;
+    const value = entry.name?.trim();
+    if (lang && value) result[lang] = value;
+  }
+  return result;
+}
+
+function mapLocalizedGenera(
+  entries: Array<{ genus?: string; language?: { name?: string } }> | undefined
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const entry of entries ?? []) {
+    const lang = entry.language?.name;
+    const value = entry.genus?.trim();
+    if (lang && value) result[lang] = value;
+  }
+  return result;
+}
+
+function mapLocalizedFlavor(
+  entries: SpeciesFromAPI["flavor_text_entries"],
+  version: "firered" | "leafgreen"
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const entry of entries ?? []) {
+    if (entry.version?.name !== version || !entry.flavor_text) continue;
+    const lang = entry.language?.name;
+    if (!lang || result[lang]) continue;
+    result[lang] = cleanFlavorText(entry.flavor_text);
+  }
+  return result;
 }
 
 /** Encounter API response shape (for mapping to PokemonRow.encounters). */
@@ -568,8 +617,12 @@ export async function fetchKantoPokemon(): Promise<PokemonRow[]> {
     }),
       evolvesFromSpeciesName: species?.evolves_from_species?.name ?? null,
       speciesGenus: getGenusEn(species ?? undefined),
+      localizedNames: mapLocalizedNames(species?.names),
+      localizedGenera: mapLocalizedGenera(species?.genera),
       flavorTextFireRed: getFlavorTextEn(species ?? undefined, "firered"),
       flavorTextLeafGreen: getFlavorTextEn(species ?? undefined, "leafgreen"),
+      localizedFlavorFireRed: mapLocalizedFlavor(species?.flavor_text_entries, "firered"),
+      localizedFlavorLeafGreen: mapLocalizedFlavor(species?.flavor_text_entries, "leafgreen"),
     };
   });
 }

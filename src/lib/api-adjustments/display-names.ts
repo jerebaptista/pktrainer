@@ -1,3 +1,5 @@
+import { pickLocalizedName } from "@/lib/locale";
+
 /**
  * Display names: API returns slugs (e.g. nidoran-f, mr-mime).
  * We override with the correct display form used across the site.
@@ -22,4 +24,12 @@ export function getPokemonDisplayName(apiName: string): string {
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+}
+
+export function getLocalizedPokemonName(
+  apiName: string,
+  localizedNames: Record<string, string> | undefined,
+  locale: string
+): string {
+  return pickLocalizedName(localizedNames, locale, getPokemonDisplayName(apiName));
 }
