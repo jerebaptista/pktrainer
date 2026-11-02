@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { AppLocale } from "@/i18n/routing";
-import { fetchKantoPokemon } from "@/lib/pokeapi";
-import { fetchMovesTableData } from "@/lib/moves-table";
 import { getLocalizedPokemonName } from "@/lib/api-adjustments";
-import { PokemonDetailView } from "../../pokedex/[name]/pokemon-detail-view";
+import { getRequestGame } from "@/lib/game-cookie";
+import { getGameMechanics } from "@/lib/games";
+import { fetchPokemonGameDetail, fetchRegionalList } from "@/lib/pokeapi-game";
+import { PokemonGameView } from "./pokemon-game-view";
 
-/** Evita ISR com payload grande (dados completos do Pokémon + moves). */
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
@@ -16,8 +16,8 @@ export async function generateMetadata({
 }) {
   const { locale, id } = await params;
   const t = await getTranslations({ locale: locale as AppLocale, namespace: "Metadata" });
-  const all = await fetchKantoPokemon();
-  const pokemon = findPokemon(all, id);
+  const game = await getRequestGame();
+  const pokemon = await fetchPokemonGameDetail(id, game, locale);
   const name = pokemon
     ? getLocalizedPokemonName(pokemon.name, pokemon.localizedNames, locale)
     : id;
@@ -28,39 +28,30 @@ export async function generateMetadata({
   };
 }
 
-function findPokemon(
-  all: Awaited<ReturnType<typeof fetchKantoPokemon>>,
-  idOrName: string
-) {
-  const slug = idOrName.toLowerCase().trim();
-  const numericId = Number(slug);
-  if (Number.isInteger(numericId) && numericId > 0) {
-    return all.find((p) => p.id === numericId) ?? all.find((p) => p.name.toLowerCase() === slug);
-  }
-  return all.find((p) => p.name.toLowerCase() === slug);
-}
-
 export default async function PokemonDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const all = await fetchKantoPokemon();
-  const pokemon = findPokemon(all, id);
+  const locale = await getLocale();
+  const game = await getRequestGame();
+  const pokemon = await fetchPokemonGameDetail(id, game, locale);
   if (!pokemon) notFound();
 
-  const allPokemon = all.map((p) => ({ name: p.name, id: p.id }));
-  const serialized = JSON.parse(JSON.stringify(pokemon)) as typeof pokemon;
-  const movesTableData = await fetchMovesTableData(serialized.moves);
+  const list = await fetchRegionalList(game);
+  const index = list.findIndex((entry) => entry.id === pokemon.id);
+  const prev = index > 0 ? list[index - 1] : null;
+  const next = index >= 0 && index < list.length - 1 ? list[index + 1] : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6 md:p-8">
-      <PokemonDetailView
-        key={pokemon.name}
-        pokemon={serialized}
-        allPokemon={allPokemon}
-        movesTableData={movesTableData}
+    <div className="flex min-h-0 flex-1 flex-col px-6 py-6 md:px-8 md:py-8">
+      <PokemonGameView
+        key={`${pokemon.id}-${game.id}`}
+        pokemon={pokemon}
+        mechanics={getGameMechanics(game.generation)}
+        prev={prev}
+        next={next}
       />
     </div>
   );

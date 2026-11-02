@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/app-sidebar";
+import { GameProvider } from "@/components/game-provider";
+import { getRequestGame } from "@/lib/game-cookie";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 
@@ -60,13 +62,19 @@ export default async function LocaleLayout({
   }
 
   setRequestLocale(locale);
+  const game = await getRequestGame();
 
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      data-theme={game.theme}
+      data-game-theme={game.theme}
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem("pk-trainer-theme-color");document.documentElement.setAttribute("data-theme",t==="green"?"green":"red");})();`,
+            __html: `(function(){try{var theme=localStorage.getItem("pk-trainer-game-theme");if(theme){document.documentElement.setAttribute("data-game-theme",theme);document.documentElement.setAttribute("data-theme",theme);}}catch(e){}})();`,
           }}
         />
       </head>
@@ -79,7 +87,9 @@ export default async function LocaleLayout({
             disableTransitionOnChange
           >
             <TooltipProvider>
-              <AppSidebar>{children}</AppSidebar>
+              <GameProvider initialGameId={game.id}>
+                <AppSidebar>{children}</AppSidebar>
+              </GameProvider>
               <Toaster position="bottom-center" />
             </TooltipProvider>
           </ThemeProvider>

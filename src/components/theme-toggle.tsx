@@ -14,10 +14,10 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <Toggle
       variant="outline"
-      size="sm"
+      size="default"
       pressed={isDark}
       onPressedChange={() => setTheme(isDark ? "light" : "dark")}
-      className={cn("size-8 p-0 data-[state=on]:bg-transparent data-[state=on]:text-foreground hover:data-[state=on]:bg-muted", className)}
+      className={cn("size-9 p-0 data-[state=on]:bg-transparent data-[state=on]:text-foreground hover:data-[state=on]:bg-muted", className)}
       aria-label={isDark ? t("dark") : t("light")}
     >
       {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}

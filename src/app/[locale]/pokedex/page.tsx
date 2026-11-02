@@ -1,9 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import type { AppLocale } from "@/i18n/routing";
-import { fetchKantoPokemon } from "@/lib/pokeapi";
-import { PokedexTable } from "./pokedex-table";
+import { getRequestGame } from "@/lib/game-cookie";
+import { fetchRegionalList } from "@/lib/pokeapi-game";
+import { PokedexRegionalList } from "./pokedex-regional-list";
 
-/** Evita ISR com payload >19MB (151 Pokémon completos). Página renderizada sob demanda. */
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
@@ -20,11 +20,8 @@ export async function generateMetadata({
 }
 
 export default async function PokedexPage() {
-  const pokemon = await fetchKantoPokemon();
+  const game = await getRequestGame();
+  const data = await fetchRegionalList(game);
 
-  return (
-    <div className="flex min-h-0 min-w-0 h-0 flex-1 flex-col overflow-hidden p-6 md:p-8">
-      <PokedexTable data={pokemon} />
-    </div>
-  );
+  return <PokedexRegionalList data={data} />;
 }

@@ -188,7 +188,7 @@ export function PokemonInfoCard({ pokemon, theme: themeProp, noCard }: PokemonIn
                 size="icon"
                 aria-label="Hear cry"
                 disabled={!pokemon.cryUrl}
-                className="border-input"
+                className="border-border"
                 onClick={() => {
                   if (pokemon.cryUrl) {
                     const audio = new Audio(pokemon.cryUrl);

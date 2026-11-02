@@ -25,7 +25,7 @@ export function LanguageSwitcher() {
         router.replace(pathname, { locale: nextLocale as AppLocale });
       }}
     >
-      <SelectTrigger aria-label={t("label")} className="w-[11rem]">
+      <SelectTrigger aria-label={t("label")} className="w-auto">
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">
