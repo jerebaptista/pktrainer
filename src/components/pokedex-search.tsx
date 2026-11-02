@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
+import { useGame } from "@/components/game-provider";
 import { Input } from "@/components/ui/input";
 
 type PokedexSearchValue = {
@@ -13,8 +14,14 @@ type PokedexSearchValue = {
 const PokedexSearchContext = createContext<PokedexSearchValue | null>(null);
 
 export function PokedexSearchProvider({ children }: { children: React.ReactNode }) {
+  const { game } = useGame();
   const [query, setQuery] = useState("");
   const value = useMemo(() => ({ query, setQuery }), [query]);
+
+  useEffect(() => {
+    setQuery("");
+  }, [game.pokedex]);
+
   return <PokedexSearchContext.Provider value={value}>{children}</PokedexSearchContext.Provider>;
 }
 

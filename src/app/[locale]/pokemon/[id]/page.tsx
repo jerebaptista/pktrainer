@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { AppLocale } from "@/i18n/routing";
+import { redirect } from "@/i18n/navigation";
 import { getLocalizedPokemonName } from "@/lib/api-adjustments";
 import { getRequestGame } from "@/lib/game-cookie";
 import { getGameMechanics } from "@/lib/games";
@@ -41,8 +42,11 @@ export default async function PokemonDetailPage({
 
   const list = await fetchRegionalList(game);
   const index = list.findIndex((entry) => entry.id === pokemon.id);
+  if (index < 0) {
+    redirect({ href: "/pokedex", locale });
+  }
   const prev = index > 0 ? list[index - 1] : null;
-  const next = index >= 0 && index < list.length - 1 ? list[index + 1] : null;
+  const next = index < list.length - 1 ? list[index + 1] : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-6 py-6 md:px-8 md:py-8">

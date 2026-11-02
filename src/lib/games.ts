@@ -208,7 +208,8 @@ export function gameCoverUrl(game: GameDef): string | undefined {
 export function gameSpriteUrl(game: GameDef, id: number, options?: { back?: boolean; shiny?: boolean }): string {
   const folder = [options?.back ? "back" : null, options?.shiny ? "shiny" : null].filter(Boolean).join("/");
   const suffix = folder ? `${folder}/` : "";
-  return `${SPRITE_CDN}/versions/${game.spriteGen}/${game.spriteVersion}/${suffix}${id}.png`;
+  const transparent = game.generation <= 2 ? "transparent/" : "";
+  return `${SPRITE_CDN}/versions/${game.spriteGen}/${game.spriteVersion}/${transparent}${suffix}${id}.png`;
 }
 
 export function gameAvatarUrl(game: GameDef): string {
@@ -219,9 +220,6 @@ export function gameMascotUrl(game: GameDef): string {
   const id = game.mascotId;
   if (game.id === "black-2" || game.id === "white-2") {
     return `${SPRITE_CDN}/versions/generation-v/black-white/${id}.png`;
-  }
-  if (game.generation <= 2) {
-    return `${SPRITE_CDN}/versions/${game.spriteGen}/${game.spriteVersion}/transparent/${id}.png`;
   }
   if (game.generation <= 6) {
     return gameSpriteUrl(game, id);

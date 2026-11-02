@@ -21,12 +21,14 @@ import {
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useGame } from "@/components/game-provider";
 import { GameSwitcher } from "@/components/game-switcher";
 import { PokedexSearchInput, PokedexSearchProvider } from "@/components/pokedex-search";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { game } = useGame();
   const t = useTranslations("Nav");
   const pageScrollRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +37,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const viewport = pageScrollRef.current?.querySelector<HTMLElement>("[data-slot='scroll-area-viewport']");
     viewport?.scrollTo({ top: 0, left: 0 });
-  }, [pathname]);
+  }, [pathname, game.pokedex]);
 
   return (
     <PokedexSearchProvider>

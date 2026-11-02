@@ -4,8 +4,6 @@ import { getRequestGame } from "@/lib/game-cookie";
 import { fetchRegionalList } from "@/lib/pokeapi-game";
 import { PokedexRegionalList } from "./pokedex-regional-list";
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: {
@@ -23,5 +21,5 @@ export default async function PokedexPage() {
   const game = await getRequestGame();
   const data = await fetchRegionalList(game);
 
-  return <PokedexRegionalList data={data} />;
+  return <PokedexRegionalList key={game.pokedex} data={data} />;
 }

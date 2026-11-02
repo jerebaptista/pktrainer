@@ -42,8 +42,12 @@ export function GameProvider({
 
   const setGameId = (id: string) => {
     if (!GAMES.some((item) => item.id === id) || id === gameId) return;
+    const nextGame = getGame(id);
     setGameIdState(id);
-    applyGameTheme(getGame(id));
+    applyGameTheme(nextGame);
+    if (nextGame.pokedex !== game.pokedex) {
+      document.querySelector<HTMLElement>("[data-slot='scroll-area-viewport']")?.scrollTo({ top: 0, left: 0 });
+    }
     startTransition(() => {
       router.refresh();
     });

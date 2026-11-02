@@ -42,7 +42,12 @@ export function PokemonGameView({
   const [female, setFemale] = useState(false);
 
   const showShiny = mechanics.shiny && Boolean(pokemon.sprites.frontShiny);
-  const showGender = pokemon.genderRate >= 0;
+  const showGender = Boolean(
+    pokemon.sprites.frontFemale ||
+      pokemon.sprites.backFemale ||
+      pokemon.sprites.frontShinyFemale ||
+      pokemon.sprites.backShinyFemale,
+  );
   const showBack = Boolean(pokemon.sprites.back);
 
   const spriteSrc = useMemo(() => {

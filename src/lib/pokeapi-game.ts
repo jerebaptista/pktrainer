@@ -1,8 +1,11 @@
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { pickLocalizedName, mapLocalizedEntries, toPokeApiLanguage } from "@/lib/locale";
 import { formatApiName } from "@/lib/utils";
 import {
   type GameDef,
   gameSpriteUrl,
+  getGame,
   getGameMechanics,
   modernSpriteUrl,
   versionGroupOrder,
@@ -24,6 +27,10 @@ export type RegionalListEntry = {
   nationalNumber: number;
   localizedNames: Record<string, string>;
   spriteUrl: string;
+  types: string[];
+  isBaby: boolean;
+  isLegendary: boolean;
+  isMythical: boolean;
 };
 
 type PokedexApi = {
@@ -205,14 +212,18 @@ export type GameSprites = {
 
 export function resolveSprites(pokemon: PokemonApi, game: GameDef): GameSprites {
   const sprites = pokemon.sprites;
-  const fromVersion = (key: string, fallback: string | null | undefined) =>
+  const fromVersion = (key: string, fallback?: string | null) =>
     readSprite(sprites, game, key) ?? fallback ?? null;
 
   return {
-    front: fromVersion("front_default", sprites?.front_default) ?? gameSpriteUrl(game, pokemon.id) ?? modernSpriteUrl(pokemon.id),
-    back: fromVersion("back_default", sprites?.back_default),
-    frontShiny: fromVersion("front_shiny", sprites?.front_shiny),
-    backShiny: fromVersion("back_shiny", sprites?.back_shiny),
+    front:
+      fromVersion("front_transparent") ??
+      fromVersion("front_default", sprites?.front_default) ??
+      gameSpriteUrl(game, pokemon.id) ??
+      modernSpriteUrl(pokemon.id),
+    back: fromVersion("back_transparent") ?? fromVersion("back_default", sprites?.back_default),
+    frontShiny: fromVersion("front_shiny_transparent") ?? fromVersion("front_shiny", sprites?.front_shiny),
+    backShiny: fromVersion("back_shiny_transparent") ?? fromVersion("back_shiny", sprites?.back_shiny),
     frontFemale: fromVersion("front_female", sprites?.front_female),
     backFemale: fromVersion("back_female", sprites?.back_female),
     frontShinyFemale: fromVersion("front_shiny_female", sprites?.front_shiny_female),
@@ -220,11 +231,169 @@ export function resolveSprites(pokemon: PokemonApi, game: GameDef): GameSprites 
   };
 }
 
-export async function fetchRegionalList(game: GameDef): Promise<RegionalListEntry[]> {
-  const dex = await pokeFetch<PokedexApi>(`/pokedex/${game.pokedex}`);
-  const entries = dex?.pokemon_entries ?? [];
+type ListExtras = Pick<RegionalListEntry, "types" | "isBaby" | "isLegendary" | "isMythical">;
 
-  return entries
+type GraphqlPokemon = {
+  id: number;
+  pokemon_v2_pokemontypes?: Array<{ slot?: number; pokemon_v2_type?: { name?: string } }>;
+  pokemon_v2_pokemontypepasts?: Array<{
+    pokemon_v2_generation?: { name?: string };
+    pokemon_v2_type?: { name?: string };
+  }>;
+};
+
+type GraphqlSpecies = {
+  id: number;
+  is_baby?: boolean;
+  is_legendary?: boolean;
+  is_mythical?: boolean;
+};
+
+function typesFromGraphql(pokemon: GraphqlPokemon, generation: number): string[] {
+  const types = [...(pokemon.pokemon_v2_pokemontypes ?? [])]
+    .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+    .map((entry) => ({ slot: entry.slot ?? 1, type: { name: entry.pokemon_v2_type?.name ?? "" } }));
+  const pastByGen = new Map<string, Array<{ slot: number; type: { name: string } }>>();
+  for (const past of pokemon.pokemon_v2_pokemontypepasts ?? []) {
+    const gen = past.pokemon_v2_generation?.name;
+    const name = past.pokemon_v2_type?.name;
+    if (!gen || !name) continue;
+    const list = pastByGen.get(gen) ?? [];
+    list.push({ slot: list.length + 1, type: { name } });
+    pastByGen.set(gen, list);
+  }
+  return resolveTypes(
+    {
+      id: pokemon.id,
+      name: "",
+      height: 0,
+      weight: 0,
+      base_experience: null,
+      types,
+      past_types: [...pastByGen.entries()].map(([name, pastTypes]) => ({
+        generation: { name },
+        types: pastTypes,
+      })),
+    },
+    generation,
+  );
+}
+
+async function loadListExtrasGraphql(ids: number[], generation: number): Promise<Map<number, ListExtras> | null> {
+  const extras = new Map<number, ListExtras>();
+  for (let i = 0; i < ids.length; i += 250) {
+    const chunk = ids.slice(i, i + 250);
+    const res = await fetch("https://beta.pokeapi.co/graphql/v1beta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query RegionalList($ids: [Int!]!) {
+          pokemon_v2_pokemon(where: { id: { _in: $ids } }) {
+            id
+            pokemon_v2_pokemontypes { slot pokemon_v2_type { name } }
+            pokemon_v2_pokemontypepasts { pokemon_v2_generation { name } pokemon_v2_type { name } }
+          }
+          pokemon_v2_pokemonspecies(where: { id: { _in: $ids } }) {
+            id is_baby is_legendary is_mythical
+          }
+        }`,
+        variables: { ids: chunk },
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(2000),
+    }).catch(() => null);
+    const json = (await res?.json().catch(() => null)) as {
+      data?: { pokemon_v2_pokemon?: GraphqlPokemon[]; pokemon_v2_pokemonspecies?: GraphqlSpecies[] };
+    } | null;
+    if (!res?.ok || !json?.data?.pokemon_v2_pokemon || !json.data.pokemon_v2_pokemonspecies) return null;
+    const speciesById = new Map(json.data.pokemon_v2_pokemonspecies.map((species) => [species.id, species]));
+    for (const pokemon of json.data.pokemon_v2_pokemon) {
+      const species = speciesById.get(pokemon.id);
+      extras.set(pokemon.id, {
+        types: typesFromGraphql(pokemon, generation),
+        isBaby: Boolean(species?.is_baby),
+        isLegendary: Boolean(species?.is_legendary),
+        isMythical: Boolean(species?.is_mythical),
+      });
+    }
+  }
+  return extras;
+}
+
+const TYPE_NAMES = [
+  "normal",
+  "fighting",
+  "flying",
+  "poison",
+  "ground",
+  "rock",
+  "bug",
+  "ghost",
+  "steel",
+  "fire",
+  "water",
+  "grass",
+  "electric",
+  "psychic",
+  "ice",
+  "dragon",
+  "dark",
+  "fairy",
+] as const;
+
+function pokemonIdFromUrl(url?: string): number | null {
+  const match = url?.match(/\/pokemon\/(\d+)\//);
+  return match ? Number(match[1]) : null;
+}
+
+async function loadListExtrasFromTypes(ids: number[], generation: number): Promise<Map<number, ListExtras>> {
+  const wanted = new Set(ids);
+  const extras = new Map<number, ListExtras>();
+  const byId = new Map<number, Array<{ name: string; slot: number }>>();
+  const results = await Promise.all(
+    TYPE_NAMES.map((name) =>
+      pokeFetch<{
+        name?: string;
+        pokemon?: Array<{ slot?: number; pokemon?: { url?: string } }>;
+      }>(`/type/${name}`),
+    ),
+  );
+  for (const type of results) {
+    const typeName = type?.name;
+    if (!typeName) continue;
+    for (const entry of type.pokemon ?? []) {
+      const id = pokemonIdFromUrl(entry.pokemon?.url);
+      if (!id || !wanted.has(id)) continue;
+      const list = byId.get(id) ?? [];
+      list.push({ name: typeName, slot: entry.slot ?? 99 });
+      byId.set(id, list);
+    }
+  }
+  for (const id of ids) {
+    const types = (byId.get(id) ?? []).sort((a, b) => a.slot - b.slot).map((entry) => entry.name);
+    extras.set(id, {
+      types: typesFromGraphql(
+        {
+          id,
+          pokemon_v2_pokemontypes: types.map((name, index) => ({
+            slot: index + 1,
+            pokemon_v2_type: { name },
+          })),
+        },
+        generation,
+      ),
+      isBaby: false,
+      isLegendary: false,
+      isMythical: false,
+    });
+  }
+  return extras;
+}
+
+async function loadRegionalList(gameId: string): Promise<RegionalListEntry[]> {
+  const game = getGame(gameId);
+  const dex = await pokeFetch<PokedexApi>(`/pokedex/${game.pokedex}`);
+  const entries = (dex?.pokemon_entries ?? [])
     .map((entry) => {
       const id = speciesIdFromUrl(entry.pokemon_species?.url);
       const name = entry.pokemon_species?.name ?? "unknown";
@@ -238,8 +407,27 @@ export async function fetchRegionalList(game: GameDef): Promise<RegionalListEntr
         spriteUrl: gameSpriteUrl(game, id),
       };
     })
-    .filter((entry): entry is RegionalListEntry => entry != null);
+    .filter((entry): entry is Omit<RegionalListEntry, "types" | "isBaby" | "isLegendary" | "isMythical"> => entry != null);
+
+  const ids = entries.map((entry) => entry.id);
+  const graphqlPromise = loadListExtrasGraphql(ids, game.generation);
+  const typesPromise = loadListExtrasFromTypes(ids, game.generation);
+  const extras = (await graphqlPromise) ?? (await typesPromise);
+
+  return entries.map((entry) => ({
+    ...entry,
+    types: extras.get(entry.id)?.types ?? [],
+    isBaby: extras.get(entry.id)?.isBaby ?? false,
+    isLegendary: extras.get(entry.id)?.isLegendary ?? false,
+    isMythical: extras.get(entry.id)?.isMythical ?? false,
+  }));
 }
+
+const loadRegionalListCached = unstable_cache(loadRegionalList, ["regional-list"], {
+  revalidate: 86400,
+});
+
+export const fetchRegionalList = cache(async (game: GameDef) => loadRegionalListCached(game.id));
 
 export type GameMove = {
   name: string;
